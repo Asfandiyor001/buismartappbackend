@@ -1,0 +1,138 @@
+{
+  "date": "2026-05-04T18:24:10.029Z",
+  "baseUrl": "https://impaired-guidance-inexpensive-april.trycloudflare.com/api",
+  "passed": 32,
+  "failed": 0,
+  "total": 32,
+  "percentage": 100,
+  "results": [
+    {
+      "name": "1.1 Admin login",
+      "status": "PASS"
+    },
+    {
+      "name": "1.2 Staff login",
+      "status": "PASS"
+    },
+    {
+      "name": "1.3 Staff2 login (Dekan / Orif)",
+      "status": "PASS"
+    },
+    {
+      "name": "1.4 Wrong password returns error",
+      "status": "PASS"
+    },
+    {
+      "name": "1.5 No token returns 401",
+      "status": "PASS"
+    },
+    {
+      "name": "1.6 Staff token blocked on admin endpoint (403)",
+      "status": "PASS"
+    },
+    {
+      "name": "2.1 Get staff profile",
+      "status": "PASS"
+    },
+    {
+      "name": "2.2 Get staff work stats",
+      "status": "PASS"
+    },
+    {
+      "name": "2.3 Get staff vacations",
+      "status": "PASS"
+    },
+    {
+      "name": "2.4 Get staff rewards",
+      "status": "PASS"
+    },
+    {
+      "name": "2.5 Get staff documents",
+      "status": "PASS"
+    },
+    {
+      "name": "3.1 Get today session",
+      "status": "PASS"
+    },
+    {
+      "name": "3.2 Get active log",
+      "status": "PASS"
+    },
+    {
+      "name": "3.3 GPS ping — inside Bino 1 (39.741066, 64.427637)",
+      "status": "PASS"
+    },
+    {
+      "name": "3.4 GPS ping — outside all buildings (Tashkent coords)",
+      "status": "PASS"
+    },
+    {
+      "name": "3.5 Get weekly report — 7 days",
+      "status": "PASS"
+    },
+    {
+      "name": "3.6 Get monthly report",
+      "status": "PASS"
+    },
+    {
+      "name": "4.1 Before-work ping guard (time-conditional)",
+      "status": "PASS"
+    },
+    {
+      "name": "4.2 After-work ping guard (time-conditional)",
+      "status": "PASS"
+    },
+    {
+      "name": "4.3 Abet-time outside ping guard (time-conditional)",
+      "status": "PASS"
+    },
+    {
+      "name": "5.1 Get buildings — 3 returned, no \"Admin uyi\"",
+      "status": "PASS"
+    },
+    {
+      "name": "6.1 Get notifications",
+      "status": "PASS"
+    },
+    {
+      "name": "6.2 Mark all notifications as read",
+      "status": "PASS"
+    },
+    {
+      "name": "7.1 Get all staff list",
+      "status": "PASS"
+    },
+    {
+      "name": "7.2 Get active-now staff",
+      "status": "PASS"
+    },
+    {
+      "name": "7.3 Get absent-today staff",
+      "status": "PASS"
+    },
+    {
+      "name": "7.4 Get admin overview",
+      "status": "PASS"
+    },
+    {
+      "name": "7.5 Generate QR for schedule (skipped when no schedules)",
+      "status": "PASS"
+    },
+    {
+      "name": "7.6 Admin broadcast notification to all users",
+      "status": "PASS"
+    },
+    {
+      "name": "8.1 Daily report",
+      "status": "PASS"
+    },
+    {
+      "name": "8.2 Monthly report",
+      "status": "PASS"
+    },
+    {
+      "name": "8.3 Yearly report",
+      "status": "PASS"
+    }
+  ]
+}

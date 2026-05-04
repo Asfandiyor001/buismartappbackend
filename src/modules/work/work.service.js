@@ -323,14 +323,10 @@ async function getToday(userId) {
   if (res.rows.length === 0) return null;
   const row = res.rows[0];
 
-  const liveTotal = parseInt(row.live_total_seconds || 0);
-  const now = new Date();
-  const workEnd = new Date();
-  workEnd.setHours(16, 30, 0, 0);
-  const isOT = now > workEnd;
-
-  const liveRegular  = Math.min(liveTotal, 8 * 3600);
-  const liveOvertime = isOT ? Math.max(0, liveTotal - 8 * 3600) : 0;
+  const liveTotal  = parseInt(row.live_total_seconds || 0);
+  const now        = new Date();
+  const nowMins    = now.getHours() * 60 + now.getMinutes();
+  const WORK_END_MINS = 16 * 60 + 30; // 990
 
   const activeLog = row.active_log
     ? (typeof row.active_log === 'string' ? JSON.parse(row.active_log) : row.active_log)
@@ -339,11 +335,22 @@ async function getToday(userId) {
     ? (typeof row.logs === 'string' ? JSON.parse(row.logs) : row.logs)
     : [];
 
+  const isAfterWork  = nowMins > WORK_END_MINS;
+  const hasActiveLog = activeLog !== null;
+
+  const liveRegular  = Math.min(liveTotal, 8 * 3600);
+  // Overtime only accrues when staff is actively inside a building AND it is past 16:30
+  const liveOvertime = (isAfterWork && hasActiveLog)
+    ? Math.max(0, liveTotal - 8 * 3600)
+    : 0;
+
   return {
     ...row,
     liveTotal,
     liveRegular,
     liveOvertime,
+    isAfterWork,
+    hasActiveLog,
     activeLog,
     logs,
   };

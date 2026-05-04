@@ -313,11 +313,33 @@ async function processPing(userId, lat, lon, accuracy) {
   try {
     await client.query('BEGIN');
 
+    // Work-time guards — computed once per ping cycle
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const WORK_START_MINS = 480; // 08:00
+    const WORK_END_MINS   = 990; // 16:30
+    const ABET_START_MINS = 780; // 13:00
+    const ABET_END_MINS   = 840; // 14:00
+
     const session = await getTodaySession(userId, client);
 
     if (isInside) {
       if (!session) {
-        const now = new Date();
+        // Do not auto-checkin before work starts (08:00)
+        if (nowMins < WORK_START_MINS) {
+          await client.query('ROLLBACK');
+          const out = { action: 'before_work_time', message: 'Ish vaqti boshlanmagan (08:00 dan)' };
+          await finalizePing(pingId, out);
+          return out;
+        }
+        // Do not create a new session after work ends (16:30)
+        if (nowMins > WORK_END_MINS) {
+          await client.query('ROLLBACK');
+          const out = { action: 'after_work_time', message: 'Ish vaqti tugagan (16:30 dan keyin)' };
+          await finalizePing(pingId, out);
+          return out;
+        }
+
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
           now.getMinutes()
         ).padStart(2, '0')}`;
@@ -432,7 +454,31 @@ async function processPing(userId, lat, lon, accuracy) {
         return out;
       }
 
-      const now = new Date();
+      // After 16:30: close the active log immediately at exactly 16:30 and finish the session.
+      // Do not wait for the 15-minute outside countdown once the work day is over.
+      if (nowMins > WORK_END_MINS) {
+        const exitTime = new Date();
+        exitTime.setHours(WORK_END_HOUR, WORK_END_MINUTE, 0, 0);
+        await closeActiveLog(session.active_log_id, exitTime, 'auto_gps', client);
+        const totalsEOD = await recalcSession(session.id, client);
+        await notifyDavomatCheckOut(client, userId, totalsEOD.total);
+        await client.query(
+          `
+          UPDATE work_sessions SET
+            is_finished   = true,
+            status        = 'done',
+            finished_at   = NOW(),
+            outside_since = NULL,
+            last_ping_at  = NOW()
+          WHERE id = $1
+        `,
+          [session.id]
+        );
+        await client.query('COMMIT');
+        const out = { action: 'auto_checkout_end_of_day', exitTime };
+        await finalizePing(pingId, out);
+        return out;
+      }
 
       if (!session.outside_since) {
         await client.query(
@@ -453,6 +499,20 @@ async function processPing(userId, lat, lon, accuracy) {
       const outsideSince = new Date(session.outside_since);
       const minutesOutside = (now - outsideSince) / 1000 / 60;
 
+      // Abet (13:00–14:00): suspend auto-checkout during lunch break.
+      // Checked BEFORE the 15-minute countdown so staff leaving at 12:50+ are not penalised.
+      const isAbetTime = nowMins >= ABET_START_MINS && nowMins < ABET_END_MINS;
+      if (isAbetTime) {
+        await client.query(
+          `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
+          [session.id]
+        );
+        await client.query('COMMIT');
+        const out = { action: 'abet_time', skipped: true };
+        await finalizePing(pingId, out);
+        return out;
+      }
+
       if (minutesOutside < AUTO_CHECKOUT_MINUTES) {
         await client.query(
           `
@@ -466,22 +526,6 @@ async function processPing(userId, lat, lon, accuracy) {
           action: 'outside_waiting',
           minutesOutside: Math.floor(minutesOutside),
         };
-        await finalizePing(pingId, out);
-        return out;
-      }
-
-      // Abet (lunch break 13:00–14:00): suspend auto-checkout timer during lunch.
-      // Staff leaving for abet should not be penalised; just heartbeat last_ping_at.
-      const hour = now.getHours();
-      const min  = now.getMinutes();
-      const isAbetTime = (hour === 13) || (hour === 14 && min === 0);
-      if (isAbetTime) {
-        await client.query(
-          `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
-          [session.id]
-        );
-        await client.query('COMMIT');
-        const out = { action: 'abet_time', skipped: true };
         await finalizePing(pingId, out);
         return out;
       }

@@ -29,16 +29,21 @@ async function autoCloseOpenSessions() {
       );
       const activeLog = logRes.rows[0];
 
+      // Use 16:30 as the canonical exit time so cron running at 23:59 does not
+      // count the gap between work-end and cron-time as worked hours.
+      const workEndToday = new Date();
+      workEndToday.setHours(16, 30, 0, 0);
+
       if (activeLog) {
         await client.query(
           `UPDATE work_logs SET
-             exit_time = NOW(),
+             exit_time = $1,
              exit_lat = COALESCE(entry_lat, 0),
              exit_lon = COALESCE(entry_lon, 0),
-             duration_seconds = EXTRACT(EPOCH FROM (NOW() - entry_time))::int,
+             duration_seconds = EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz))::int,
              is_active = false
-           WHERE id = $1`,
-          [activeLog.id]
+           WHERE id = $2`,
+          [workEndToday.toISOString(), activeLog.id]
         );
       }
 
@@ -49,23 +54,21 @@ async function autoCloseOpenSessions() {
       );
       const total = Number(sumRes.rows[0].total);
       const regularSeconds = Math.min(total, REGULAR_CAP);
-      const now = new Date();
-      const overtimeSeconds = isPastWorkEnd(now)
-        ? Math.max(0, total - REGULAR_CAP)
-        : 0;
+      // Cron fires at 23:59 — always past work end, so any seconds over 8 h are overtime
+      const overtimeSeconds = Math.max(0, total - REGULAR_CAP);
 
       await client.query(
         `UPDATE work_sessions SET
            total_seconds = $1,
            regular_seconds = $2,
            overtime_seconds = $3,
-           last_exit_time = CURRENT_TIME,
+           last_exit_time = '16:30:00',
            updated_at = NOW(),
            is_finished = true,
-           finished_at = NOW(),
+           finished_at = $4,
            status = 'done'
-         WHERE id = $4`,
-        [total, regularSeconds, overtimeSeconds, ws.id]
+         WHERE id = $5`,
+        [total, regularSeconds, overtimeSeconds, workEndToday.toISOString(), ws.id]
       );
 
       await client.query('COMMIT');
