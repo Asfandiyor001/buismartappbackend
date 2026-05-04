@@ -1,0 +1,5 @@
+-- Prorektor roli (admin panel uchun)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users
+  ADD CONSTRAINT users_role_check
+  CHECK (role IN ('staff', 'student', 'admin', 'prorektor'));

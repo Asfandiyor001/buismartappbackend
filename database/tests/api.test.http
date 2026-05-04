@@ -1,0 +1,522 @@
+# ============================================================
+# BIU Smart App — API Test Suite
+# VS Code REST Client extension format
+# Run order: Auth first → copy tokens → run the rest
+#
+# Seed phone numbers:
+#   Staff   → +998901111001 / +998901111002 / +998901111003
+#   Student → +998902222001 / +998902222002 / +998902222003
+#   Admin   → +998900000001
+#   Password (all): 1234
+# ============================================================
+
+@baseUrl = http://localhost:5000
+
+# After running auth requests paste the JWT values below:
+@STAFF_TOKEN   = REPLACE_WITH_STAFF_TOKEN
+@STUDENT_TOKEN = REPLACE_WITH_STUDENT_TOKEN
+@ADMIN_TOKEN   = REPLACE_WITH_ADMIN_TOKEN
+
+
+# ===========================================================
+### 1. AUTH TESTS
+# ===========================================================
+
+### 1-1. Staff login — expect 200, token in response
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998901111001",
+  "password": "1234"
+}
+
+###
+
+### 1-2. Wrong password — expect 400, Uzbek error message
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998901111001",
+  "password": "wrongpass"
+}
+
+###
+
+### 1-3. Student login — expect 200, token in response
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998902222001",
+  "password": "1234"
+}
+
+###
+
+### 1-4. Admin login — expect 200, token in response
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998900000001",
+  "password": "1234"
+}
+
+###
+
+### 1-5. Missing phone field — expect 400, validation error
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "password": "1234"
+}
+
+###
+
+### 1-6. Short password (< 4 chars) — expect 400, validation error
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998901111001",
+  "password": "123"
+}
+
+###
+
+### 1-7. Non-existent phone — expect 400/404, user not found
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "phone": "+998909999999",
+  "password": "1234"
+}
+
+###
+
+
+# ===========================================================
+### 2. WORK TESTS  (requires STAFF_TOKEN)
+# ===========================================================
+
+### 2-1. Get active log — expect 200 (null if not checked in yet)
+GET {{baseUrl}}/api/work/active
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 2-2. Check in to Bino 1 (correct GPS) — expect 200
+POST {{baseUrl}}/api/work/checkin
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "buildingId": 1,
+  "lat": 39.7747,
+  "lon": 64.4286
+}
+
+###
+
+### 2-3. Double check-in (same building) — expect 400, "allaqachon belgilangansiz"
+POST {{baseUrl}}/api/work/checkin
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "buildingId": 1,
+  "lat": 39.7747,
+  "lon": 64.4286
+}
+
+###
+
+### 2-4. Check in with wrong GPS (Toshkent) — expect 400, "Siz binoda emassiz"
+POST {{baseUrl}}/api/work/checkin
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "buildingId": 1,
+  "lat": 41.2995,
+  "lon": 69.2401
+}
+
+###
+
+### 2-5. Get today session — expect 200
+GET {{baseUrl}}/api/work/today
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 2-6. Check out (correct GPS) — expect 200
+POST {{baseUrl}}/api/work/checkout
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "lat": 39.7747,
+  "lon": 64.4286
+}
+
+###
+
+### 2-7. Get weekly report — expect 200, array of sessions
+GET {{baseUrl}}/api/work/week
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 2-8. Get monthly report — expect 200
+GET {{baseUrl}}/api/work/month?year=2025&month=4
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 2-9. No token — expect 401
+GET {{baseUrl}}/api/work/today
+
+###
+
+
+# ===========================================================
+### 3. STAFF TESTS  (requires STAFF_TOKEN)
+# ===========================================================
+
+### 3-1. Get staff profile — expect 200, profile object
+GET {{baseUrl}}/api/staff/profile
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 3-2. Get work stats — expect 200
+GET {{baseUrl}}/api/staff/work-stats
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 3-3. Get vacation list — expect 200, empty array initially
+GET {{baseUrl}}/api/staff/vacations
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 3-4. Request vacation — expect 200/201
+POST {{baseUrl}}/api/staff/vacations
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "type": "yillik",
+  "start_date": "2025-05-01",
+  "end_date": "2025-05-10",
+  "reason": "Yillik ta'til"
+}
+
+###
+
+### 3-5. Invalid vacation type — expect 400, validation error
+POST {{baseUrl}}/api/staff/vacations
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "type": "invalid_type",
+  "start_date": "2025-05-01",
+  "end_date": "2025-05-10"
+}
+
+###
+
+### 3-6. Get rewards list — expect 200
+GET {{baseUrl}}/api/staff/rewards
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 3-7. Student trying staff endpoint — expect 403
+GET {{baseUrl}}/api/staff/profile
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+
+# ===========================================================
+### 4. STUDENT TESTS  (requires STUDENT_TOKEN)
+# ===========================================================
+
+### 4-1. Get student profile — expect 200
+GET {{baseUrl}}/api/student/profile
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-2. Get today schedule (IT-22-1) — expect 200, lesson list
+GET {{baseUrl}}/api/student/schedule/today
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-3. Get week schedule — expect 200, grouped by day
+GET {{baseUrl}}/api/student/schedule?week=0
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-4. Get attendance summary — expect 200
+GET {{baseUrl}}/api/student/attendance/summary
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-5. Get grades — expect 200
+GET {{baseUrl}}/api/student/grades
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-6. Get assignments — expect 200
+GET {{baseUrl}}/api/student/assignments
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 4-7. QR check-in with invalid token — expect 400, "QR kod topilmadi"
+POST {{baseUrl}}/api/student/attendance/checkin
+Content-Type: application/json
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+{
+  "token": "invalid-token-123",
+  "lat": 39.7747,
+  "lon": 64.4286
+}
+
+###
+
+### 4-8. Staff trying student endpoint — expect 403
+GET {{baseUrl}}/api/student/profile
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+
+# ===========================================================
+### 5. NOTIFICATIONS TESTS
+# ===========================================================
+
+### 5-1. Get notifications (staff) — expect 200, array
+GET {{baseUrl}}/api/notifications
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 5-2. Get notifications (student) — expect 200, array
+GET {{baseUrl}}/api/notifications
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 5-3. Mark all read — expect 200
+PUT {{baseUrl}}/api/notifications/read-all
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 5-4. No token — expect 401
+GET {{baseUrl}}/api/notifications
+
+###
+
+
+# ===========================================================
+### 6. REPORTS TESTS  (requires STAFF_TOKEN)
+# ===========================================================
+
+### 6-1. Daily report — expect 200
+GET {{baseUrl}}/api/reports/daily
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 6-2. Weekly report without from param — expect 200, auto Monday (FIX 2)
+GET {{baseUrl}}/api/reports/weekly
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 6-2b. Weekly report with explicit from — expect 200
+GET {{baseUrl}}/api/reports/weekly?from=2026-04-21
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 6-3. Monthly report — expect 200
+GET {{baseUrl}}/api/reports/monthly?year=2025&month=4
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+
+# ===========================================================
+### 7. ADMIN TESTS  (requires ADMIN_TOKEN)
+# ===========================================================
+
+### 7-1. Get all staff — expect 200, array
+GET {{baseUrl}}/api/admin/staff
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###
+
+### 7-2. Get active-now staff — expect 200
+GET {{baseUrl}}/api/admin/staff/active-now
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###
+
+### 7-3. Get overview — expect 200, stats object
+GET {{baseUrl}}/api/admin/overview
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###
+
+### 7-4. Generate QR for schedule id 1 — expect 200, token string
+POST {{baseUrl}}/api/admin/qr/generate
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "scheduleId": 1
+}
+
+###
+
+### 7-5. Send broadcast notification — expect 200
+POST {{baseUrl}}/api/admin/notify
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "userIds": [],
+  "type": "tizim",
+  "title": "Test xabar",
+  "body": "Bu test xabarnomasi"
+}
+
+###
+
+### 7-6. Invalid notification type — expect 400
+POST {{baseUrl}}/api/admin/notify
+Content-Type: application/json
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+{
+  "userIds": [],
+  "type": "invalid_type",
+  "title": "Test",
+  "body": "Test"
+}
+
+###
+
+### 7-7. Student using admin endpoint — expect 403
+GET {{baseUrl}}/api/admin/overview
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+###
+
+### 7-8. Staff using admin endpoint — expect 403
+GET {{baseUrl}}/api/admin/overview
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 7-9. No token on admin route — expect 401
+GET {{baseUrl}}/api/admin/overview
+
+###
+
+
+# ===========================================================
+### 8. FIX TESTS — same-day re-checkin & weekly report
+# ===========================================================
+
+### 8-1. Reset today session (after checkout) — expect 200 (FIX 1)
+POST {{baseUrl}}/api/work/reset-session
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 8-2. Re-checkin same day after reset — expect 200 (FIX 1)
+POST {{baseUrl}}/api/work/checkin
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "buildingId": 2,
+  "lat": 39.740624,
+  "lon": 64.432623
+}
+
+###
+
+### 8-3. Today shows multiple logs — expect 200, logs array length > 1
+GET {{baseUrl}}/api/work/today
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+### 8-4. Checkout from Bino 2 — expect 200
+POST {{baseUrl}}/api/work/checkout
+Content-Type: application/json
+Authorization: Bearer {{STAFF_TOKEN}}
+
+{
+  "lat": 39.740624,
+  "lon": 64.432623
+}
+
+###
+
+### 8-5. Reset when active log exists — expect 400 (FIX 1 guard)
+# First checkin to make active log, then try reset
+POST {{baseUrl}}/api/work/reset-session
+Authorization: Bearer {{STAFF_TOKEN}}
+
+###
+
+
+# ===========================================================
+# EXPECTED RESULTS SUMMARY
+# ===========================================================
+# 1-1  Staff login success        → 200, { token, user }
+# 1-2  Wrong password             → 400, Uzbek error message
+# 1-3  Student login success      → 200, { token, user }
+# 1-4  Admin login success        → 200, { token, user }
+# 1-5  Missing phone              → 400, validation error
+# 1-6  Short password             → 400, min 4 chars
+# 1-7  Non-existent user          → 400/404
+# 2-2  Check-in correct GPS       → 200, log entry created
+# 2-3  Double check-in            → 400, "allaqachon belgilangansiz"
+# 2-4  Wrong GPS check-in         → 400, "Siz binoda emassiz"
+# 2-9  No token (work)            → 401
+# 3-5  Invalid vacation type      → 400
+# 3-7  Student → staff endpoint   → 403
+# 4-7  Invalid QR token           → 400, "QR kod topilmadi"
+# 4-8  Staff → student endpoint   → 403
+# 5-4  No token (notifications)   → 401
+# 7-7  Student → admin endpoint   → 403
+# 7-8  Staff → admin endpoint     → 403
+# 7-9  No token (admin)           → 401
+# 8-1  Reset session              → 200, "Sessiya qayta faollashtirildi"
+# 8-2  Re-checkin same day        → 200, log entry created
+# 8-3  Today shows multiple logs  → 200, logs.length >= 2
+# 8-4  Checkout Bino 2            → 200
+# 8-5  Reset with active log      → 400, "aktiv kirish mavjud"
+# 6-2  Weekly no param            → 200, auto Monday used
+# 6-2b Weekly with from param     → 200
