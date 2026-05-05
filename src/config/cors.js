@@ -1,29 +1,26 @@
-/**
- * Ruxsat etilgan frontend originlar.
- * Vite: 5173, CRA: 3000, Expo veb: 8081 / 19006
- */
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    'http://192.168.0.165:5173',
-    'http://192.168.0.20:5174',
-    'http://localhost:8081',
-    'http://localhost:19006',
-    'http://192.168.0.165:8081',
-    'exp://192.168.0.165:8081',
-    'exp://192.168.0.165:19000',
-    'http://192.168.0.165:19006',
-    process.env.CLIENT_URL,
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    const allowed = [
+      /^https?:\/\/localhost(:\d+)?$/,
+      /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+      /\.trycloudflare\.com$/,
+      /^exp:\/\//,
+    ];
+
+    if (allowed.some(pattern => pattern.test(origin))) {
+      return callback(null, true);
+    }
+
+    callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 204,
-}
+};
 
-module.exports = corsOptions
+module.exports = corsOptions;
