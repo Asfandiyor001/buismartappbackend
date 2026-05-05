@@ -124,6 +124,12 @@ const pingHandler = async (req, res) => {
     }
 
     const result = await geofenceService.processPing(req.user.id, la, lo, acc);
+
+    // Return 200 for too_frequent — client must NOT retry on this response
+    if (result.action === 'too_frequent') {
+      return success(res, result, 'GPS ping qabul qilindi');
+    }
+
     return success(res, result, 'GPS ping qabul qilindi');
   } catch (err) {
     return error(res, err.message || 'Server xatosi', 500);

@@ -280,6 +280,24 @@ async function openNewLog(sessionId, userId, buildingId, lat, lon, client) {
 }
 
 async function processPing(userId, lat, lon, accuracy) {
+  // Debounce: Expo Go foreground pings can arrive every few seconds.
+  // Ignore pings that arrive within 25 s of the previous one to prevent
+  // duplicate checkins or redundant DB writes.
+  const lastPingResult = await pool.query(
+    `SELECT created_at FROM gps_pings
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+  if (lastPingResult.rows.length > 0) {
+    const lastPing = new Date(lastPingResult.rows[0].created_at);
+    const secondsSinceLastPing = (Date.now() - lastPing.getTime()) / 1000;
+    if (secondsSinceLastPing < 25) {
+      return { action: 'too_frequent', secondsSince: Math.floor(secondsSinceLastPing) };
+    }
+  }
+
   const building = await nearestBuilding(lat, lon);
   if (!building) {
     return { action: 'no_buildings' };
