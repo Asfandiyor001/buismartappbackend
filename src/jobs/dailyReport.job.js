@@ -29,21 +29,23 @@ async function autoCloseOpenSessions() {
       );
       const activeLog = logRes.rows[0];
 
-      // Use 16:30 as the canonical exit time so cron running at 23:59 does not
-      // count the gap between work-end and cron-time as worked hours.
-      const workEndToday = new Date();
-      workEndToday.setHours(16, 30, 0, 0);
+      // Use 16:30 Tashkent time (+05) as the canonical exit time so cron
+      // running at 23:59 does not count the gap as worked hours.
+      // Pass an explicit timezone-offset string to avoid timestamptz vs
+      // timestamp-without-timezone mismatch on the PostgreSQL side.
+      const todayDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const workEndStr = `${todayDate} 16:30:00+05`;
 
       if (activeLog) {
         await client.query(
           `UPDATE work_logs SET
-             exit_time = $1,
+             exit_time = $1::timestamptz,
              exit_lat = COALESCE(entry_lat, 0),
              exit_lon = COALESCE(entry_lon, 0),
              duration_seconds = EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz))::int,
              is_active = false
            WHERE id = $2`,
-          [workEndToday.toISOString(), activeLog.id]
+          [workEndStr, activeLog.id]
         );
       }
 
@@ -68,7 +70,7 @@ async function autoCloseOpenSessions() {
            finished_at = $4,
            status = 'done'
          WHERE id = $5`,
-        [total, regularSeconds, overtimeSeconds, workEndToday.toISOString(), ws.id]
+        [total, regularSeconds, overtimeSeconds, workEndStr, ws.id]
       );
 
       await client.query('COMMIT');

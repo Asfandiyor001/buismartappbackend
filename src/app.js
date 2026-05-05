@@ -19,6 +19,10 @@ const { success, error } = require('./utils/response');
 
 const app = express();
 
+// Cloudflare Tunnel / reverse-proxy orqasida ishlaganda
+// express-rate-limit X-Forwarded-For sarlavhasini ishonchli deb qabul qilishi uchun
+app.set('trust proxy', 1);
+
 // ── Xavfsizlik ──────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
