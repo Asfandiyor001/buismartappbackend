@@ -1,4 +1,3 @@
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -80,6 +79,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Root ────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'BIU Smart App API muvaffaqiyatli ishlamoqda! 🚀',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV,
+  });
+});
+
 // ── API routes ──────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/work', workRoutes);
@@ -98,27 +107,16 @@ app.get('/api/buildings', authenticate, checkRole('admin', 'prorektor'), async (
   }
 });
 
-// API health check (minimal info)
 app.get('/api/health', (req, res) => {
   res.json({ success: true });
 });
 
-// ── Frontend static fayllar ─────────────────────────────
-const publicDir = path.join(__dirname, '..', 'public');
-app.use(express.static(publicDir, {
-  dotfiles: 'deny',
-  index: false,
-}));
-
-// SPA fallback
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ success: false, message: 'API route topilmadi' });
-  }
-  res.sendFile(path.join(publicDir, 'index.html'));
+// ── 404 handler ─────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route topilmadi' });
 });
 
-// Global error handler
+// ── Global error handler ────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, message: 'Server xatosi' });
