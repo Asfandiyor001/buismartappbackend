@@ -258,6 +258,17 @@ async function getOverview() {
      WHERE wl.is_active = true AND u.role = 'staff'`
   );
   const presentNow = presentRes.rows[0].c;
+  const activeNow = presentNow;
+
+  const finishedRes = await pool.query(
+    `SELECT COUNT(*)::int AS c
+     FROM work_sessions ws
+     JOIN users u ON u.id = ws.user_id
+     WHERE ws.work_date = CURRENT_DATE
+       AND ws.status = 'done'
+       AND u.role = 'staff'`
+  );
+  const finishedToday = finishedRes.rows[0].c;
 
   const absentToday = Math.max(0, totalStaff - presentNow);
 
@@ -342,6 +353,8 @@ async function getOverview() {
     today: {
       totalStaff,
       presentNow,
+      activeNow,
+      finishedToday,
       absentToday,
       overtimeNow,
       buildingCounts,

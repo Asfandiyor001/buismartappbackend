@@ -7,7 +7,7 @@
 const fs   = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://impaired-guidance-inexpensive-april.trycloudflare.com/api';
+const BASE_URL = 'https://creation-informative-absence-neural.trycloudflare.com/api';
 
 const headers = {
   'Content-Type':                    'application/json',
@@ -74,7 +74,7 @@ async function runAuthTests() {
   console.log('\n── 1. AUTH ─────────────────────────────────────────');
 
   await test('1.1 Admin login', async () => {
-    const res  = await post('/auth/login', { phone: '+998901002026', password: 'Asfandiyor2026' });
+    const res  = await post('/api/auth/login', { phone: '+998901002026', password: 'Asfandiyor2026' });
     const body = await res.json();
     assert(body.success === true,          'Login failed: ' + (body.message || JSON.stringify(body)));
     assert(body.data?.token,               'Token not found at data.token');
@@ -85,7 +85,7 @@ async function runAuthTests() {
   });
 
   await test('1.2 Staff login', async () => {
-    const res  = await post('/auth/login', { phone: '+998902002026', password: 'Marufjon2026' });
+    const res  = await post('/api/auth/login', { phone: '+998902002026', password: 'Marufjon2026' });
     const body = await res.json();
     assert(body.success === true,  'Staff login failed: ' + (body.message || JSON.stringify(body)));
     assert(body.data?.token,       'Token not found at data.token');
@@ -94,7 +94,7 @@ async function runAuthTests() {
   });
 
   await test('1.3 Staff2 login (Dekan / Orif)', async () => {
-    const res  = await post('/auth/login', { phone: '+998914002026', password: 'Orif2026' });
+    const res  = await post('/api/auth/login', { phone: '+998914002026', password: 'Orif2026' });
     const body = await res.json();
     assert(body.success === true,  'Staff2 login failed: ' + (body.message || JSON.stringify(body)));
     assert(body.data?.token,       'Token not found at data.token');
@@ -103,7 +103,7 @@ async function runAuthTests() {
   });
 
   await test('1.4 Wrong password returns error', async () => {
-    const res  = await post('/auth/login', { phone: '+998901002026', password: 'wrongpass' });
+    const res  = await post('/api/auth/login', { phone: '+998901002026', password: 'wrongpass' });
     const body = await res.json();
     assert(body.success === false, 'Should return success=false for wrong password');
     assert(res.status === 400 || res.status === 401,
@@ -111,14 +111,14 @@ async function runAuthTests() {
   });
 
   await test('1.5 No token returns 401', async () => {
-    const res = await fetch(`${BASE_URL}/work/today`, {
+    const res = await fetch(`${BASE_URL}/api/work/today`, {
       headers: { 'cloudflare-skip-browser-warning': 'true' },
     });
     assert(res.status === 401, `Expected 401, got ${res.status}`);
   });
 
   await test('1.6 Staff token blocked on admin endpoint (403)', async () => {
-    const res = await get('/admin/overview', staffToken);
+    const res = await get('/api/admin/overview', staffToken);
     assert(res.status === 403,
       `Staff should be blocked (403) on admin endpoint, got ${res.status}`);
   });
@@ -132,7 +132,7 @@ async function runStaffProfileTests() {
   console.log('\n── 2. STAFF PROFILE ────────────────────────────────');
 
   await test('2.1 Get staff profile', async () => {
-    const res  = await get('/staff/profile', staffToken);
+    const res  = await get('/api/staff/profile', staffToken);
     const body = await res.json();
     assert(body.success === true, 'Profile fetch failed: ' + JSON.stringify(body));
     const d = body.data || {};
@@ -143,7 +143,7 @@ async function runStaffProfileTests() {
   });
 
   await test('2.2 Get staff work stats', async () => {
-    const res  = await get('/staff/work-stats', staffToken);
+    const res  = await get('/api/staff/work-stats', staffToken);
     const body = await res.json();
     assert(body.success === true, 'Work stats failed: ' + JSON.stringify(body));
     assert(body.data?.month !== undefined,
@@ -153,7 +153,7 @@ async function runStaffProfileTests() {
   });
 
   await test('2.3 Get staff vacations', async () => {
-    const res  = await get('/staff/vacations', staffToken);
+    const res  = await get('/api/staff/vacations', staffToken);
     const body = await res.json();
     assert(body.success === true,  'Vacations failed: ' + JSON.stringify(body));
     assert(Array.isArray(body.data), `Should return array, got ${typeof body.data}`);
@@ -161,7 +161,7 @@ async function runStaffProfileTests() {
   });
 
   await test('2.4 Get staff rewards', async () => {
-    const res  = await get('/staff/rewards', staffToken);
+    const res  = await get('/api/staff/rewards', staffToken);
     const body = await res.json();
     assert(body.success === true, 'Rewards failed: ' + JSON.stringify(body));
     assert(body.data?.rewards !== undefined,
@@ -170,7 +170,7 @@ async function runStaffProfileTests() {
   });
 
   await test('2.5 Get staff documents', async () => {
-    const res  = await get('/staff/documents', staffToken);
+    const res  = await get('/api/staff/documents', staffToken);
     const body = await res.json();
     assert(body.success === true,  'Documents failed: ' + JSON.stringify(body));
     assert(Array.isArray(body.data), `Should return array, got ${typeof body.data}`);
@@ -185,7 +185,7 @@ async function runWorkTests() {
   console.log('\n── 3. WORK MODULE ──────────────────────────────────');
 
   await test('3.1 Get today session', async () => {
-    const res  = await get('/work/today', staffToken);
+    const res  = await get('/api/work/today', staffToken);
     const body = await res.json();
     assert(body.success === true, 'Today fetch failed: ' + JSON.stringify(body));
     if (body.data) {
@@ -200,7 +200,7 @@ async function runWorkTests() {
   });
 
   await test('3.2 Get active log', async () => {
-    const res  = await get('/work/active', staffToken);
+    const res  = await get('/api/work/active', staffToken);
     const body = await res.json();
     assert(body.success === true, 'Active log failed: ' + JSON.stringify(body));
     // data is null when not checked in — that is valid
@@ -208,7 +208,7 @@ async function runWorkTests() {
   });
 
   await test('3.3 GPS ping — inside Bino 1 (39.741066, 64.427637)', async () => {
-    const res  = await post('/work/ping',
+    const res  = await post('/api/work/ping',
       { lat: 39.741066, lon: 64.427637, accuracy: 5.0 },
       staffToken
     );
@@ -219,7 +219,7 @@ async function runWorkTests() {
   });
 
   await test('3.4 GPS ping — outside all buildings (Tashkent coords)', async () => {
-    const res  = await post('/work/ping',
+    const res  = await post('/api/work/ping',
       { lat: 41.2995, lon: 69.2401, accuracy: 10.0 },
       staffToken
     );
@@ -228,6 +228,7 @@ async function runWorkTests() {
     const valid = [
       'outside_start', 'outside_waiting', 'outside_no_log', 'no_session',
       'day_finished', 'after_work_time', 'auto_checkout_end_of_day', 'abet_time',
+      'too_frequent',
     ];
     assert(valid.includes(body.data?.action),
       `Unexpected outside action: "${body.data?.action}". Valid: ${valid.join(', ')}`);
@@ -235,7 +236,7 @@ async function runWorkTests() {
   });
 
   await test('3.5 Get weekly report — 7 days', async () => {
-    const res  = await get('/work/week', staffToken);
+    const res  = await get('/api/work/week', staffToken);
     const body = await res.json();
     assert(body.success === true,       'Weekly failed: ' + JSON.stringify(body));
     assert(Array.isArray(body.data),    `Should return array, got ${typeof body.data}`);
@@ -246,7 +247,7 @@ async function runWorkTests() {
   await test('3.6 Get monthly report', async () => {
     const now  = new Date();
     const res  = await get(
-      `/work/month?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
+      `/api/work/month?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
       staffToken
     );
     const body = await res.json();
@@ -268,7 +269,7 @@ async function runGeofenceTimeTests() {
     const ts      = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     if (nowMins < 480) {
-      const res  = await post('/work/ping',
+      const res  = await post('/api/work/ping',
         { lat: 39.741066, lon: 64.427637, accuracy: 5 },
         staffToken
       );
@@ -289,7 +290,7 @@ async function runGeofenceTimeTests() {
     const ts      = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     if (nowMins > 990) {
-      const res  = await post('/work/ping',
+      const res  = await post('/api/work/ping',
         { lat: 39.741066, lon: 64.427637, accuracy: 5 },
         staffToken
       );
@@ -314,14 +315,14 @@ async function runGeofenceTimeTests() {
     const ts      = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     if (nowMins >= 780 && nowMins < 840) {
-      const res  = await post('/work/ping',
+      const res  = await post('/api/work/ping',
         { lat: 41.2995, lon: 69.2401, accuracy: 10 },
         staffToken
       );
       const body = await res.json();
       const valid = [
         'abet_time', 'no_session', 'outside_no_log',
-        'outside_start', 'outside_waiting',
+        'outside_start', 'outside_waiting', 'too_frequent',
       ];
       assert(valid.includes(body.data?.action),
         `Expected abet-related action at ${ts}, got: "${body.data?.action}"`);
@@ -341,7 +342,7 @@ async function runBuildingsTests() {
 
   await test('5.1 Get buildings — 3 returned, no "Admin uyi"', async () => {
     // /buildings requires admin privileges
-    const res  = await get('/buildings', adminToken);
+    const res  = await get('/api/buildings', adminToken);
     const body = await res.json();
     assert(body.success === true,       'Buildings failed: ' + JSON.stringify(body));
     assert(Array.isArray(body.data),    `Should return array, got ${typeof body.data}`);
@@ -366,7 +367,7 @@ async function runNotificationTests() {
   console.log('\n── 6. NOTIFICATIONS ────────────────────────────────');
 
   await test('6.1 Get notifications', async () => {
-    const res  = await get('/notifications', staffToken);
+    const res  = await get('/api/notifications', staffToken);
     const body = await res.json();
     assert(body.success === true,  'Notifications failed: ' + JSON.stringify(body));
     const d = body.data || {};
@@ -378,7 +379,7 @@ async function runNotificationTests() {
   });
 
   await test('6.2 Mark all notifications as read', async () => {
-    const res  = await put('/notifications/read-all', undefined, staffToken);
+    const res  = await put('/api/notifications/read-all', undefined, staffToken);
     const body = await res.json();
     assert(body.success === true, 'Mark all read failed: ' + JSON.stringify(body));
   });
@@ -391,7 +392,7 @@ async function runAdminTests() {
   console.log('\n── 7. ADMIN ────────────────────────────────────────');
 
   await test('7.1 Get all staff list', async () => {
-    const res  = await get('/admin/staff', adminToken);
+    const res  = await get('/api/admin/staff', adminToken);
     const body = await res.json();
     assert(body.success === true, 'Get staff failed: ' + JSON.stringify(body));
     // Response: { data: { staff: [...], total: N } } or { data: [...] }
@@ -403,7 +404,7 @@ async function runAdminTests() {
 
   await test('7.2 Get active-now staff', async () => {
     // Response: { data: { "buildingId": [ ...staff ], ... } } — keyed by building ID
-    const res  = await get('/admin/staff/active-now', adminToken);
+    const res  = await get('/api/admin/staff/active-now', adminToken);
     const body = await res.json();
     assert(body.success === true, 'Active now failed: ' + JSON.stringify(body));
     const d = body.data || {};
@@ -417,7 +418,7 @@ async function runAdminTests() {
   });
 
   await test('7.3 Get absent-today staff', async () => {
-    const res  = await get('/admin/staff/absent-today', adminToken);
+    const res  = await get('/api/admin/staff/absent-today', adminToken);
     const body = await res.json();
     assert(body.success === true,       'Absent today failed: ' + JSON.stringify(body));
     assert(Array.isArray(body.data),    `Should return array, got ${typeof body.data}`);
@@ -425,7 +426,7 @@ async function runAdminTests() {
   });
 
   await test('7.4 Get admin overview', async () => {
-    const res  = await get('/admin/overview', adminToken);
+    const res  = await get('/api/admin/overview', adminToken);
     const body = await res.json();
     assert(body.success === true,         'Overview failed: ' + JSON.stringify(body));
     assert(body.data?.today !== undefined,
@@ -435,7 +436,7 @@ async function runAdminTests() {
   });
 
   await test('7.5 Generate QR for schedule (skipped when no schedules)', async () => {
-    const schRes  = await get('/student/schedule?week=0', staffToken);
+    const schRes  = await get('/api/student/schedule?week=0', staffToken);
     const schBody = await schRes.json();
     const days     = schBody.data?.days || {};
     const allSlots = Object.values(days).flat();
@@ -445,14 +446,14 @@ async function runAdminTests() {
       console.log('   ⏩ Skipped — no schedules found in DB');
       return;
     }
-    const res  = await post('/admin/qr/generate', { scheduleId }, adminToken);
+    const res  = await post('/api/admin/qr/generate', { scheduleId }, adminToken);
     const body = await res.json();
     assert(body.success === true, 'QR generate failed: ' + JSON.stringify(body));
     console.log(`   QR token: ${(body.data?.token || '').slice(0, 12)}...`);
   });
 
   await test('7.6 Admin broadcast notification to all users', async () => {
-    const res  = await post('/admin/notify', {
+    const res  = await post('/api/admin/notify', {
       userIds: [],
       type:    'tizim',
       title:   'Test xabarnoma',
@@ -476,7 +477,7 @@ async function runReportsTests() {
 
   await test('8.1 Daily report', async () => {
     const today = new Date().toISOString().slice(0, 10);
-    const res   = await get(`/reports/daily?date=${today}`, staffToken);
+    const res   = await get(`/api/reports/daily?date=${today}`, staffToken);
     const body  = await res.json();
     assert(body.success === true, 'Daily report failed: ' + JSON.stringify(body));
     const d = body.data || {};
@@ -486,7 +487,7 @@ async function runReportsTests() {
   await test('8.2 Monthly report', async () => {
     const now  = new Date();
     const res  = await get(
-      `/reports/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
+      `/api/reports/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
       staffToken
     );
     const body = await res.json();
@@ -499,7 +500,7 @@ async function runReportsTests() {
 
   await test('8.3 Yearly report', async () => {
     const year  = new Date().getFullYear();
-    const res   = await get(`/reports/yearly?year=${year}`, staffToken);
+    const res   = await get(`/api/reports/yearly?year=${year}`, staffToken);
     const body  = await res.json();
     assert(body.success === true, 'Yearly report failed: ' + JSON.stringify(body));
     assert(body.data?.year === year, `year field should be ${year}`);

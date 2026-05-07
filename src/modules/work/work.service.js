@@ -345,7 +345,17 @@ async function getToday(userId) {
     : 0;
 
   return {
-    ...row,
+    id: row.id,
+    workDate: row.work_date,
+    status: row.status,
+    isFinished: row.is_finished,
+    firstEntryTime: row.first_entry_time,
+    lastExitTime: row.last_exit_time,
+    totalSeconds: Number(row.total_seconds) || 0,
+    regularSeconds: Number(row.regular_seconds) || 0,
+    overtimeSeconds: Number(row.overtime_seconds) || 0,
+    buildingsVisited: row.buildings_visited,
+    buildingSwitches: row.building_switches,
     liveTotal,
     liveRegular,
     liveOvertime,
@@ -442,7 +452,20 @@ async function getActiveLog(userId) {
     [userId]
   );
   if (res.rows.length === 0) return null;
-  return res.rows[0];
+  const row = res.rows[0];
+  const secondsInBuilding = row.entry_time
+    ? Math.floor((Date.now() - new Date(row.entry_time).getTime()) / 1000)
+    : 0;
+  return {
+    id: row.id,
+    buildingId: row.building_id,
+    buildingName: row.building_name,
+    buildingShort: row.building_short_name,
+    entryTime: row.entry_time,
+    secondsInBuilding,
+    isActive: row.is_active,
+    checkoutReason: row.checkout_reason,
+  };
 }
 
 async function resetTodaySession(userId) {

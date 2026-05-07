@@ -1,0 +1,421 @@
+{
+  "date": "2026-05-07T10:30:51.199Z",
+  "backend": "https://creation-informative-absence-neural.trycloudflare.com",
+  "summary": {
+    "pass": 56,
+    "fail": 5,
+    "warn": 0,
+    "total": 61,
+    "percentage": 92
+  },
+  "byCategory": {
+    "AUTH": {
+      "pass": 9,
+      "total": 9
+    },
+    "PROFILE": {
+      "pass": 7,
+      "total": 7
+    },
+    "WORK": {
+      "pass": 5,
+      "total": 5
+    },
+    "GPS": {
+      "pass": 4,
+      "total": 4
+    },
+    "BUILDINGS": {
+      "pass": 0,
+      "total": 2
+    },
+    "REPORTS": {
+      "pass": 6,
+      "total": 6
+    },
+    "NOTIFICATIONS": {
+      "pass": 3,
+      "total": 3
+    },
+    "ADMIN": {
+      "pass": 11,
+      "total": 11
+    },
+    "STUDENT": {
+      "pass": 5,
+      "total": 8
+    },
+    "SECURITY": {
+      "pass": 6,
+      "total": 6
+    }
+  },
+  "tests": [
+    {
+      "category": "AUTH",
+      "name": "Admin login",
+      "status": "PASS",
+      "note": "Admin ID: 1"
+    },
+    {
+      "category": "AUTH",
+      "name": "Staff login (Marufjon)",
+      "status": "PASS",
+      "note": "Staff ID: 2"
+    },
+    {
+      "category": "AUTH",
+      "name": "Staff2 login (Orif - Dekan)",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "AUTH",
+      "name": "Staff3 login (Feruza farrosh)",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "AUTH",
+      "name": "Noto'g'ri parol → 400/401",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "AUTH",
+      "name": "Token yo'q → 401",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "AUTH",
+      "name": "Noto'g'ri token → 401",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "AUTH",
+      "name": "Staff → admin endpoint → 403",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "AUTH",
+      "name": "Change password validation",
+      "status": "PASS",
+      "note": "Validation ishlayapti ✓"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Profil yuklash",
+      "status": "PASS",
+      "note": "Ta'lim bo'limi - Tyutor"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Profil yangilash (ruxsat etilgan maydonlar)",
+      "status": "PASS",
+      "note": "Yangilandi ✓"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Ish statistikasi",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Hujjatlar ro'yxati",
+      "status": "PASS",
+      "note": "0 ta hujjat"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Ta'tillar ro'yxati",
+      "status": "PASS",
+      "note": "0 ta ta'til"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Ta'til so'rovi yuborish",
+      "status": "PASS",
+      "note": "So'rov yuborildi ✓"
+    },
+    {
+      "category": "PROFILE",
+      "name": "Mukofot/jarimalar ro'yxati",
+      "status": "PASS",
+      "note": "Mukofotlar: 0"
+    },
+    {
+      "category": "WORK",
+      "name": "Bugungi sessiya",
+      "status": "PASS",
+      "note": "Status: done, Live: 23s"
+    },
+    {
+      "category": "WORK",
+      "name": "Aktiv log",
+      "status": "PASS",
+      "note": "Aktiv log yo'q"
+    },
+    {
+      "category": "WORK",
+      "name": "Haftalik hisobot (7 kun)",
+      "status": "PASS",
+      "note": "7 kunlik ✓"
+    },
+    {
+      "category": "WORK",
+      "name": "Oylik hisobot",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "WORK",
+      "name": "Haftalik default (from parametrsiz)",
+      "status": "PASS",
+      "note": "Auto-Monday ✓"
+    },
+    {
+      "category": "GPS",
+      "name": "GPS ping — Bino 1 ichida (39.741066, 64.427637)",
+      "status": "PASS",
+      "note": "Action: auto_recheckin"
+    },
+    {
+      "category": "GPS",
+      "name": "GPS ping — Bino 2 (39.740624, 64.432623)",
+      "status": "PASS",
+      "note": "Action: too_frequent"
+    },
+    {
+      "category": "GPS",
+      "name": "GPS ping — Tashqarida (Toshkent 41.2995, 69.2401)",
+      "status": "PASS",
+      "note": "Action: too_frequent"
+    },
+    {
+      "category": "GPS",
+      "name": "Reset session — qayta checkin imkoniyati",
+      "status": "PASS",
+      "note": "Session yo'q (normal)"
+    },
+    {
+      "category": "BUILDINGS",
+      "name": "Binolar ro'yxati",
+      "status": "FAIL",
+      "error": "Buildings yuklanmadi"
+    },
+    {
+      "category": "BUILDINGS",
+      "name": "Har bino GPS koordinatalari bor",
+      "status": "FAIL",
+      "error": "Cannot read properties of undefined (reading 'forEach')"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Kunlik hisobot (bugun)",
+      "status": "PASS",
+      "note": "Sana: 2026-05-07"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Oylik hisobot",
+      "status": "PASS",
+      "note": "Kelgan: 4 kun"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Yillik hisobot",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Haftalik hisobot (reports)",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Boshqa xodim hisoboti — staff bloklanadi",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "REPORTS",
+      "name": "Admin boshqa xodim hisobotini ko'ra oladi",
+      "status": "PASS",
+      "note": "Admin ko'ra oldi ✓"
+    },
+    {
+      "category": "NOTIFICATIONS",
+      "name": "Xabarnomalar ro'yxati",
+      "status": "PASS",
+      "note": "20 ta, O'qilmagan: 22"
+    },
+    {
+      "category": "NOTIFICATIONS",
+      "name": "Hammasini o'qildi",
+      "status": "PASS",
+      "note": "Hammasi o'qildi ✓"
+    },
+    {
+      "category": "NOTIFICATIONS",
+      "name": "O'qilmagan soni 0 bo'ldi",
+      "status": "PASS",
+      "note": "UnreadCount = 0 ✓"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Barcha xodimlar ro'yxati",
+      "status": "PASS",
+      "note": "13 ta xodim"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Hozir aktiv xodimlar",
+      "status": "PASS",
+      "note": "2 ta aktiv xodim"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Bugun kelmagan xodimlar",
+      "status": "PASS",
+      "note": "13 ta kelmagan"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Admin overview — barcha statistika",
+      "status": "PASS",
+      "note": "Jami: 13, Aktiv: 2, Yo'q: 11"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Xodim detail (id=2)",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Xodim hujjatlari (admin)",
+      "status": "PASS",
+      "note": "0 ta hujjat"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Xodim ta'tillari (admin)",
+      "status": "PASS",
+      "note": "1 ta ta'til"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Xodim mukofotlari (admin)",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Xodim ish loglari (admin)",
+      "status": "PASS",
+      "note": "2 ta log"
+    },
+    {
+      "category": "ADMIN",
+      "name": "Broadcast xabar — barcha foydalanuvchilarga",
+      "status": "PASS",
+      "note": "18 ta foydalanuvchiga yuborildi"
+    },
+    {
+      "category": "ADMIN",
+      "name": "QR generatsiya (jadval mavjud bo'lsa)",
+      "status": "PASS",
+      "note": "Jadval yo'q, skip"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Talaba login",
+      "status": "PASS",
+      "note": "Talaba: Dilnoza Yusupova"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Talaba profili",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Bugungi darslar",
+      "status": "FAIL",
+      "error": "Jadval yuklanmadi"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Haftalik jadval",
+      "status": "FAIL",
+      "error": "Jadval yuklanmadi"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Davomat xulosasi",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Baholar",
+      "status": "PASS",
+      "note": "OK"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Topshiriqlar",
+      "status": "FAIL",
+      "error": "Assignments yuklanmadi"
+    },
+    {
+      "category": "STUDENT",
+      "name": "Noto'g'ri QR token → xato",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "category": "SECURITY",
+      "name": "SQL injection urinish",
+      "status": "PASS",
+      "note": "SQL injection bloklandi ✓"
+    },
+    {
+      "category": "SECURITY",
+      "name": "Bo'sh body → validation xato",
+      "status": "PASS",
+      "note": "Validation ishlayapti ✓"
+    },
+    {
+      "category": "SECURITY",
+      "name": "GPS koordinatalar validatsiyasi",
+      "status": "PASS",
+      "note": "Koordinata validatsiya ✓"
+    },
+    {
+      "category": "SECURITY",
+      "name": "Server health check",
+      "status": "PASS",
+      "note": "Server sog'lom ✓"
+    },
+    {
+      "category": "SECURITY",
+      "name": "CORS header tekshirish",
+      "status": "PASS",
+      "note": "Status: 200"
+    },
+    {
+      "category": "SECURITY",
+      "name": "Rate limit (login spam)",
+      "status": "PASS",
+      "note": "Rate limit ishlayapti ✓"
+    }
+  ]
+}

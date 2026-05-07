@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node tests/api.test.js",
+    "test:e2e": "node tests/e2e.test.js",
     "start": "node server.js"
   },
   "keywords": [],

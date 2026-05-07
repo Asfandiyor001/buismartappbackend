@@ -98,7 +98,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/api/buildings', authenticate, checkRole('admin', 'prorektor'), async (req, res) => {
+app.get('/api/buildings', authenticate, checkRole('staff', 'admin', 'prorektor'), async (req, res) => {
   try {
     const data = await adminService.listBuildings();
     return success(res, data, 'Binolar');

@@ -1,0 +1,96 @@
+{
+  "date": "2026-05-07T10:27:43.079Z",
+  "passed": 22,
+  "failed": 0,
+  "percentage": 100,
+  "results": [
+    {
+      "name": "1.1 Staff login (Zaribboyev Marufjon)",
+      "status": "PASS"
+    },
+    {
+      "name": "1.2 Staff profile loads correctly",
+      "status": "PASS"
+    },
+    {
+      "name": "2.1 Check today session before checkin",
+      "status": "PASS"
+    },
+    {
+      "name": "2.2 Check active log before checkin",
+      "status": "PASS"
+    },
+    {
+      "name": "3.1 GPS ping inside Bino 1 — auto checkin",
+      "status": "PASS"
+    },
+    {
+      "name": "3.2 Verify session created after ping",
+      "status": "PASS"
+    },
+    {
+      "name": "3.3 Active log shows Bino 1",
+      "status": "PASS"
+    },
+    {
+      "name": "4.1 Stay in building — same building ping",
+      "status": "PASS"
+    },
+    {
+      "name": "5.1 Move to Bino 2 — auto switch",
+      "status": "PASS"
+    },
+    {
+      "name": "5.2 Verify switched to Bino 2",
+      "status": "PASS"
+    },
+    {
+      "name": "5.3 Today session shows building switches",
+      "status": "PASS"
+    },
+    {
+      "name": "6.1 Go outside — outside detection",
+      "status": "PASS"
+    },
+    {
+      "name": "6.2 Second outside ping — waiting",
+      "status": "PASS"
+    },
+    {
+      "name": "7.1 Come back to Bino 1 — auto re-checkin",
+      "status": "PASS"
+    },
+    {
+      "name": "7.2 Verify active again after return",
+      "status": "PASS"
+    },
+    {
+      "name": "8.1 Manual checkout",
+      "status": "PASS"
+    },
+    {
+      "name": "9.1 Today session final state",
+      "status": "PASS"
+    },
+    {
+      "name": "9.2 Active log should be null after checkout",
+      "status": "PASS"
+    },
+    {
+      "name": "9.3 Weekly report includes today",
+      "status": "PASS"
+    },
+    {
+      "name": "9.4 Daily report correct",
+      "status": "PASS"
+    },
+    {
+      "name": "9.5 Admin sees staff in active-now (before checkout) or absent",
+      "status": "PASS"
+    },
+    {
+      "name": "9.6 GPS pings saved correctly in DB",
+      "status": "PASS"
+    }
+  ]
+}

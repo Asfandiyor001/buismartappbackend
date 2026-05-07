@@ -80,7 +80,7 @@ async function getProfile(userId) {
        sp.address, sp.district, sp.region, sp.nationality,
        sp.emergency_name, sp.emergency_phone, sp.emergency_relation,
        sp.education_level, sp.university, sp.speciality, sp.graduation_year, sp.degree,
-       sp.notes
+       sp.notes, sp.work_days
      FROM users u
      LEFT JOIN staff_profiles sp ON sp.user_id = u.id
      WHERE u.id = $1 AND u.role IN ('staff', 'admin')`,
@@ -90,6 +90,11 @@ async function getProfile(userId) {
   if (!row) {
     throw new Error('Xodim topilmadi');
   }
+  row.fullName = row.full_name;
+  row.workStart = row.work_start;
+  row.workEnd = row.work_end;
+  row.workHoursDay = row.work_hours_day;
+  row.workDays = row.work_days;
   return row;
 }
 
