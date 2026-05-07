@@ -1,5 +1,5 @@
 {
-  "date": "2026-05-07T10:30:51.199Z",
+  "date": "2026-05-07T10:36:25.639Z",
   "backend": "https://creation-informative-absence-neural.trycloudflare.com",
   "summary": {
     "pass": 56,
@@ -14,7 +14,7 @@
       "total": 9
     },
     "PROFILE": {
-      "pass": 7,
+      "pass": 6,
       "total": 7
     },
     "WORK": {
@@ -26,7 +26,7 @@
       "total": 4
     },
     "BUILDINGS": {
-      "pass": 0,
+      "pass": 1,
       "total": 2
     },
     "REPORTS": {
@@ -133,13 +133,13 @@
       "category": "PROFILE",
       "name": "Ta'tillar ro'yxati",
       "status": "PASS",
-      "note": "0 ta ta'til"
+      "note": "1 ta ta'til"
     },
     {
       "category": "PROFILE",
       "name": "Ta'til so'rovi yuborish",
-      "status": "PASS",
-      "note": "So'rov yuborildi ✓"
+      "status": "FAIL",
+      "error": "Ta'til so'rovi yuborilmadi: Bu sanalarda ta'lingiz allaqachon mavjud"
     },
     {
       "category": "PROFILE",
@@ -151,13 +151,13 @@
       "category": "WORK",
       "name": "Bugungi sessiya",
       "status": "PASS",
-      "note": "Status: done, Live: 23s"
+      "note": "Status: active, Live: 355s"
     },
     {
       "category": "WORK",
       "name": "Aktiv log",
       "status": "PASS",
-      "note": "Aktiv log yo'q"
+      "note": "Bino: Bino 1 — Asosiy bino"
     },
     {
       "category": "WORK",
@@ -181,7 +181,7 @@
       "category": "GPS",
       "name": "GPS ping — Bino 1 ichida (39.741066, 64.427637)",
       "status": "PASS",
-      "note": "Action: auto_recheckin"
+      "note": "Action: inside_same"
     },
     {
       "category": "GPS",
@@ -204,14 +204,14 @@
     {
       "category": "BUILDINGS",
       "name": "Binolar ro'yxati",
-      "status": "FAIL",
-      "error": "Buildings yuklanmadi"
+      "status": "PASS",
+      "note": "Binolar: Bino 1 — Asosiy bino, Bino 2 — Laboratoriya, Bino 3 — Kutubxona"
     },
     {
       "category": "BUILDINGS",
       "name": "Har bino GPS koordinatalari bor",
       "status": "FAIL",
-      "error": "Cannot read properties of undefined (reading 'forEach')"
+      "error": "Bino 1 — Asosiy bino latitude yo'q"
     },
     {
       "category": "REPORTS",
@@ -253,7 +253,7 @@
       "category": "NOTIFICATIONS",
       "name": "Xabarnomalar ro'yxati",
       "status": "PASS",
-      "note": "20 ta, O'qilmagan: 22"
+      "note": "20 ta, O'qilmagan: 1"
     },
     {
       "category": "NOTIFICATIONS",

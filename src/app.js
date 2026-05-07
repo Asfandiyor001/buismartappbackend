@@ -13,7 +13,7 @@ const reportRoutes = require('./modules/report/report.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const authenticate = require('./middleware/auth');
 const checkRole = require('./middleware/role');
-const adminService = require('./modules/admin/admin.service');
+const pool = require('./config/database');
 const { success, error } = require('./utils/response');
 
 const app = express();
@@ -100,7 +100,22 @@ app.use('/api/admin', adminRoutes);
 
 app.get('/api/buildings', authenticate, checkRole('staff', 'admin', 'prorektor'), async (req, res) => {
   try {
-    const data = await adminService.listBuildings();
+    const resDb = await pool.query(
+      `SELECT id, name, short_name, latitude, longitude, radius_m, is_active
+       FROM buildings
+       WHERE is_active = true
+       ORDER BY id ASC`
+    );
+    const data = resDb.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      shortName: row.short_name,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      radiusM: row.radius_m,
+      radius_m: row.radius_m,
+      isActive: row.is_active,
+    }));
     return success(res, data, 'Binolar');
   } catch (err) {
     return error(res, err.message, 500);
