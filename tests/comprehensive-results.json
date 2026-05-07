@@ -1,12 +1,12 @@
 {
-  "date": "2026-05-07T10:36:25.639Z",
+  "date": "2026-05-07T10:39:55.987Z",
   "backend": "https://creation-informative-absence-neural.trycloudflare.com",
   "summary": {
-    "pass": 56,
-    "fail": 5,
+    "pass": 57,
+    "fail": 4,
     "warn": 0,
     "total": 61,
-    "percentage": 92
+    "percentage": 93
   },
   "byCategory": {
     "AUTH": {
@@ -26,7 +26,7 @@
       "total": 4
     },
     "BUILDINGS": {
-      "pass": 1,
+      "pass": 2,
       "total": 2
     },
     "REPORTS": {
@@ -151,7 +151,7 @@
       "category": "WORK",
       "name": "Bugungi sessiya",
       "status": "PASS",
-      "note": "Status: active, Live: 355s"
+      "note": "Status: active, Live: 566s"
     },
     {
       "category": "WORK",
@@ -210,8 +210,8 @@
     {
       "category": "BUILDINGS",
       "name": "Har bino GPS koordinatalari bor",
-      "status": "FAIL",
-      "error": "Bino 1 — Asosiy bino latitude yo'q"
+      "status": "PASS",
+      "note": "Barcha koordinatalar bor ✓"
     },
     {
       "category": "REPORTS",
