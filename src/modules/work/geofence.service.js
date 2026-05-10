@@ -156,7 +156,7 @@ async function closeActiveLog(logId, exitTime, reason, client) {
   await dbOrClient.query(
     `
     UPDATE work_logs SET
-      exit_time        = $1,
+      exit_time        = $1::timestamptz,
       duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::INT,
       is_active        = false,
       checkout_reason  = $2
@@ -811,11 +811,11 @@ async function autoCheckoutAt(userId, timestamp) {
         `
         UPDATE work_sessions SET
           outside_since  = NULL,
-          last_ping_at   = $1,
+          last_ping_at   = $1::timestamptz,
           last_exit_time = $2::TIME,
           auto_checkout  = true,
           is_finished    = true,
-          finished_at    = $1,
+          finished_at    = $1::timestamptz,
           status         = 'done'
         WHERE id = $3
       `,

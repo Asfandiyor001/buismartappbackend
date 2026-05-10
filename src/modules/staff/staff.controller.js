@@ -92,13 +92,11 @@ const getMyReport = async (req, res) => {
  */
 const getTeamStatus = async (req, res) => {
   try {
-    const data = await staffService.getTeamStatus(req.user.id, req.user.role);
-    return success(res, data, 'Jamoa holati');
-  } catch (err) {
-    const status =
-      err.statusCode ||
-      (String(err.message || '').includes('Ruxsat') ? 403 : 500);
-    return error(res, err.message, status);
+    const result = await staffService.getTeamStatus(req.user.id, req.user.role);
+    return success(res, result, 'Jamoa holati');
+  } catch (e) {
+    console.error('[team-status] error:', e.message);
+    return error(res, 'Jamoa holati yuklanmadi', 500);
   }
 };
 
