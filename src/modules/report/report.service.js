@@ -43,10 +43,10 @@ async function getDailyReport(userId, date) {
   const res = await pool.query(
     `SELECT
       ws.id,
-      TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+      ws.work_date::text AS work_date,
       ws.user_id,
-      TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
-      TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time,
+      ws.first_entry_time::text AS first_entry_time,
+      ws.last_exit_time::text AS last_exit_time,
       ws.total_seconds,
       ws.regular_seconds,
       ws.overtime_seconds,
@@ -129,11 +129,11 @@ async function getDailyReport(userId, date) {
 async function getWeeklyReport(userId, fromDate) {
   const toExclusive = addDaysYmd(fromDate, 7);
   const res = await pool.query(
-    `SELECT TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+    `SELECT ws.work_date::text AS work_date,
             ws.status,
             ws.total_seconds, ws.regular_seconds, ws.overtime_seconds,
-            TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
-            TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time,
+            ws.first_entry_time::text AS first_entry_time,
+            ws.last_exit_time::text AS last_exit_time,
             ws.buildings_visited, ws.building_switches,
             COUNT(wl.id)::int AS log_count,
             COALESCE(
@@ -241,12 +241,12 @@ async function getWeeklyReport(userId, fromDate) {
 
 async function computeMonthlyFromSessions(userId, year, month) {
   const res = await pool.query(
-    `SELECT TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+    `SELECT ws.work_date::text AS work_date,
             ws.status,
             ws.total_seconds, ws.regular_seconds, ws.overtime_seconds,
             ws.buildings_visited,
-            TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
-            TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time
+            ws.first_entry_time::text AS first_entry_time,
+            ws.last_exit_time::text AS last_exit_time
      FROM work_sessions ws
      WHERE ws.user_id = $1
        AND EXTRACT(YEAR FROM ws.work_date) = $2
