@@ -1,5 +1,7 @@
 const pool = require('../../config/database');
 const { todayStr } = require('../../utils/time');
+const geofenceService = require('../work/geofence.service');
+const staffRepository = require('./staff.repository');
 
 const ALLOWED_PROFILE_FIELDS = [
   'address',
@@ -373,6 +375,76 @@ async function getWorkStats(userId) {
   };
 }
 
+/**
+ * Jamoa holati: bugungi ish vaqti, reja va foiz, holat (Ishda / Avto-chiqish / Offline).
+ */
+function normalizeTeamStatusRow(row) {
+  let workLogIntervals = row.work_log_intervals;
+  if (typeof workLogIntervals === 'string') {
+    try {
+      workLogIntervals = JSON.parse(workLogIntervals);
+    } catch {
+      workLogIntervals = [];
+    }
+  }
+  if (!Array.isArray(workLogIntervals)) workLogIntervals = [];
+
+  let lastLogDetails = row.last_log_details;
+  if (typeof lastLogDetails === 'string') {
+    try {
+      lastLogDetails = JSON.parse(lastLogDetails);
+    } catch {
+      lastLogDetails = null;
+    }
+  }
+
+  const trimReason = (v) =>
+    v != null && String(v).trim() !== '' ? String(v).trim() : null;
+
+  return {
+    ...row,
+    checkout_reason: trimReason(row.checkout_reason),
+    last_checkout_reason: trimReason(row.last_checkout_reason),
+    total_work_minutes:
+      row.total_work_minutes != null ? Number(row.total_work_minutes) : 0,
+    total_work_seconds:
+      row.total_work_seconds != null ? Number(row.total_work_seconds) : 0,
+    scheduled_seconds:
+      row.scheduled_seconds != null ? Number(row.scheduled_seconds) : null,
+    performance_percent:
+      row.performance_percent != null ? Number(row.performance_percent) : 0,
+    gps_lost_count:
+      row.gps_lost_count != null ? Number(row.gps_lost_count) : 0,
+    last_log_details: lastLogDetails,
+    work_log_intervals: workLogIntervals,
+  };
+}
+
+async function getTeamStatus(viewerId, role) {
+  const uid = Number(viewerId);
+  if (!Number.isFinite(uid)) {
+    const err = new Error("Noto'g'ri foydalanuvchi");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await geofenceService.finalizeInactiveSessions();
+
+  if (role === 'admin') {
+    const { rows } = await staffRepository.findTeamStatusToday('admin', [uid]);
+    return { team: rows.map(normalizeTeamStatusRow) };
+  }
+
+  if (role === 'staff') {
+    const { rows } = await staffRepository.findTeamStatusToday('staff', [uid, uid]);
+    return { team: rows.map(normalizeTeamStatusRow) };
+  }
+
+  const err = new Error('Ruxsat yo\'q');
+  err.statusCode = 403;
+  throw err;
+}
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -382,4 +454,5 @@ module.exports = {
   requestVacation,
   getRewards,
   getWorkStats,
+  getTeamStatus,
 };

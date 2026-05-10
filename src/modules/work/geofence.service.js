@@ -1,6 +1,12 @@
 const pool = require('../../config/database');
 const { nowStr } = require('../../utils/time');
 
+const safeExitTime = (entryTime, proposedExitTime) => {
+  const entry = new Date(entryTime);
+  const exit = new Date(proposedExitTime);
+  return exit >= entry ? exit : entry;
+};
+
 const AUTO_CHECKOUT_MINUTES = 15;
 /** No ping for this long → auto-finish session at last_ping_at (ghost-session guard). */
 const INACTIVE_SESSION_MINUTES = 30;
@@ -132,16 +138,25 @@ async function getTodaySession(userId, client) {
 
 async function closeActiveLog(logId, exitTime, reason, client) {
   const dbOrClient = client || pool;
+  const { rows } = await dbOrClient.query(
+    `SELECT entry_time FROM work_logs WHERE id = $1`,
+    [logId]
+  );
+  const entryTime = rows[0]?.entry_time;
+  if (!entryTime) {
+    throw new Error(`closeActiveLog: work_log ${logId} not found`);
+  }
+  const safeExit = safeExitTime(entryTime, exitTime);
   await dbOrClient.query(
     `
     UPDATE work_logs SET
       exit_time        = $1,
-      duration_seconds = EXTRACT(EPOCH FROM ($2::timestamptz - entry_time::timestamptz))::INT,
+      duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::INT,
       is_active        = false,
-      checkout_reason  = $3
-    WHERE id = $4
+      checkout_reason  = $2
+    WHERE id = $3
   `,
-    [exitTime, exitTime, reason, logId]
+    [safeExit, reason, logId]
   );
 }
 
@@ -883,6 +898,7 @@ async function openNewLogAt(sessionId, userId, buildingId, lat, lon, entryTime, 
 }
 
 module.exports = {
+  safeExitTime,
   processPing,
   processPingAt,
   autoCheckoutAt,

@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const pool = require('../config/database');
+const { safeExitTime } = require('../modules/work/geofence.service');
 
 const REGULAR_CAP = 8 * 3600;
 
@@ -37,15 +38,16 @@ async function autoCloseOpenSessions() {
       const workEndStr = `${todayDate} 16:30:00+05`;
 
       if (activeLog) {
+        const safeExit = safeExitTime(activeLog.entry_time, workEndStr);
         await client.query(
           `UPDATE work_logs SET
              exit_time = $1::timestamptz,
              exit_lat = COALESCE(entry_lat, 0),
              exit_lon = COALESCE(entry_lon, 0),
-             duration_seconds = EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz))::int,
+             duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::int,
              is_active = false
            WHERE id = $2`,
-          [workEndStr, activeLog.id]
+          [safeExit, activeLog.id]
         );
       }
 

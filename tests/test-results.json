@@ -1,78 +1,95 @@
 {
-  "date": "2026-05-05T08:26:59.019Z",
-  "baseUrl": "https://default-affiliated-examples-funeral.trycloudflare.com",
-  "passed": 32,
-  "failed": 0,
+  "date": "2026-05-08T07:44:14.907Z",
+  "baseUrl": "https://creation-informative-absence-neural.trycloudflare.com/api",
+  "passed": 4,
+  "failed": 28,
   "total": 32,
-  "percentage": 100,
+  "percentage": 13,
   "results": [
     {
       "name": "1.1 Admin login",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Login failed: Route topilmadi"
     },
     {
       "name": "1.2 Staff login",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Staff login failed: Route topilmadi"
     },
     {
       "name": "1.3 Staff2 login (Dekan / Orif)",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Staff2 login failed: Route topilmadi"
     },
     {
       "name": "1.4 Wrong password returns error",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Expected 400/401, got 404"
     },
     {
       "name": "1.5 No token returns 401",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Expected 401, got 404"
     },
     {
       "name": "1.6 Staff token blocked on admin endpoint (403)",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Staff should be blocked (403) on admin endpoint, got 404"
     },
     {
       "name": "2.1 Get staff profile",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Profile fetch failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "2.2 Get staff work stats",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Work stats failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "2.3 Get staff vacations",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Vacations failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "2.4 Get staff rewards",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Rewards failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "2.5 Get staff documents",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Documents failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.1 Get today session",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Today fetch failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.2 Get active log",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Active log failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.3 GPS ping — inside Bino 1 (39.741066, 64.427637)",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Ping failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.4 GPS ping — outside all buildings (Tashkent coords)",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Outside ping failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.5 Get weekly report — 7 days",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Weekly failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "3.6 Get monthly report",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Monthly failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "4.1 Before-work ping guard (time-conditional)",
@@ -88,31 +105,38 @@
     },
     {
       "name": "5.1 Get buildings — 3 returned, no \"Admin uyi\"",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Buildings failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "6.1 Get notifications",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Notifications failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "6.2 Mark all notifications as read",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Mark all read failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "7.1 Get all staff list",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Get staff failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "7.2 Get active-now staff",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Active now failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "7.3 Get absent-today staff",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Absent today failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "7.4 Get admin overview",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Overview failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "7.5 Generate QR for schedule (skipped when no schedules)",
@@ -120,19 +144,23 @@
     },
     {
       "name": "7.6 Admin broadcast notification to all users",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Broadcast failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "8.1 Daily report",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Daily report failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "8.2 Monthly report",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Monthly report failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     },
     {
       "name": "8.3 Yearly report",
-      "status": "PASS"
+      "status": "FAIL",
+      "error": "Yearly report failed: {\"success\":false,\"message\":\"Route topilmadi\"}"
     }
   ]
 }
