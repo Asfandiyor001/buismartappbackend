@@ -371,6 +371,7 @@ async function runAll() {
 
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
+  const dayOfWeek = now.getDay();
 
   await test(
     'GPS ping — Bino 1 ichida (39.741066, 64.427637)',
@@ -387,17 +388,21 @@ async function runAll() {
       );
       assert(r.data.success, 'Ping failed: ' + JSON.stringify(r.data));
       const action = r.data.data?.action;
-      const valid = [
-        'auto_checkin',
-        'inside_same',
-        'auto_recheckin',
-        'too_frequent',
-        'before_work_time',
-        'after_work_time',
-        'abet_time',
-        'day_finished',
-      ];
-      assert(valid.includes(action), `Noto'g'ri action: ${action}`);
+      if (dayOfWeek === 0) {
+        assert(action === 'day_off', `Yakshanba day_off bo'lishi kerak, keldi: ${action}`);
+      } else {
+        const valid = [
+          'auto_checkin',
+          'inside_same',
+          'auto_recheckin',
+          'too_frequent',
+          'before_work_time',
+          'after_work_time',
+          'abet_time',
+          'day_finished',
+        ];
+        assert(valid.includes(action), `Noto'g'ri action: ${action}`);
+      }
       return `Action: ${action}`;
     },
     'GPS',
@@ -419,6 +424,10 @@ async function runAll() {
         tokens.staff,
       );
       assert(r.data.success, 'Ping failed');
+      const action2 = r.data.data?.action;
+      if (dayOfWeek === 0) {
+        assert(action2 === 'day_off', `Yakshanba day_off bo'lishi kerak, keldi: ${action2}`);
+      }
       return `Action: ${r.data.data?.action}`;
     },
     'GPS',
@@ -441,24 +450,28 @@ async function runAll() {
       );
       assert(r.data.success, 'Outside ping failed');
       const action = r.data.data?.action;
-      const valid = [
-        'outside_start',
-        'outside_waiting',
-        'outside_no_log',
-        'no_session',
-        'too_frequent',
-        'day_finished',
-        'after_work_time',
-        'auto_checkout_end_of_day',
-      ];
-      assert(valid.includes(action), `Noto'g'ri outside action: ${action}`);
+      if (dayOfWeek === 0) {
+        assert(action === 'day_off', `Yakshanba day_off bo'lishi kerak, keldi: ${action}`);
+      } else {
+        const valid = [
+          'outside_start',
+          'outside_waiting',
+          'outside_no_log',
+          'no_session',
+          'too_frequent',
+          'day_finished',
+          'after_work_time',
+          'auto_checkout_end_of_day',
+        ];
+        assert(valid.includes(action), `Noto'g'ri outside action: ${action}`);
+      }
       return `Action: ${action}`;
     },
     'GPS',
   );
 
   // Abet time test
-  if (nowMins >= 780 && nowMins < 840) {
+  if (dayOfWeek !== 0 && nowMins >= 780 && nowMins < 840) {
     await test(
       "Abet vaqti — tashqarida bo'lsa checkout bo'lmasin",
       async () => {
@@ -485,7 +498,7 @@ async function runAll() {
   }
 
   // Before work test
-  if (nowMins < 480) {
+  if (dayOfWeek !== 0 && nowMins < 480) {
     await test(
     "08:00 dan oldin — checkin bo'lmasin",
     async () => {
@@ -507,7 +520,7 @@ async function runAll() {
   }
 
   // After work test
-  if (nowMins > 990) {
+  if (dayOfWeek !== 0 && nowMins > 990) {
     await test(
     '16:30 dan keyin — overtime yoki day_finished',
     async () => {

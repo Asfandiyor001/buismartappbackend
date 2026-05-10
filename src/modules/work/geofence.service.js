@@ -371,6 +371,15 @@ async function processPing(userId, lat, lon, accuracy) {
     const ABET_START_MINS = 780; // 13:00
     const ABET_END_MINS   = 840; // 14:00
 
+    const dayOfWeek = now.getDay();
+    // 0 = Yakshanba (dam olish); 1–6 = Dushanba–Shanba (ish kunlari)
+    if (dayOfWeek === 0) {
+      await client.query('ROLLBACK');
+      const out = { action: 'day_off', message: 'Yakshanba — dam olish kuni' };
+      await finalizePing(pingId, out);
+      return out;
+    }
+
     const session = await getTodaySession(userId, client);
 
     if (isInside) {

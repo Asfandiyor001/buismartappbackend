@@ -261,6 +261,31 @@ async function runDailyReport() {
       : now.toISOString().slice(0, 10);
 
   console.log(`[dailyReport] Boshlanmoqda: ${targetDate}`);
+
+  const [y, mo, da] = targetDate.split('-').map(Number);
+  const targetDayOfWeek = new Date(y, mo - 1, da).getDay();
+  if (targetDayOfWeek === 0) {
+    const { rows: openRows } = await pool.query(
+      `
+      SELECT COUNT(*)::text AS count
+      FROM work_sessions
+      WHERE work_date = $1::date
+        AND is_finished = false
+    `,
+      [targetDate]
+    );
+    const openCount = parseInt(openRows[0].count, 10);
+    if (openCount === 0) {
+      console.log(
+        '[dailyReport] Yakshanba — ochiq sessiya yo\'q; kutilmagan ish kuni, avto-yopish o\'tkazildi'
+      );
+      return;
+    }
+    console.log(
+      `[dailyReport] Yakshanba — ${openCount} ta ochiq sessiya bor, yopish davom etadi`
+    );
+  }
+
   await runWithRetry(targetDate, 1);
 }
 

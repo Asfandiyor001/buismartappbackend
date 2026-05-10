@@ -2,6 +2,12 @@ const cron = require('node-cron');
 const pool = require('../config/database');
 
 async function markAbsentStaff() {
+  const dayOfWeek = new Date().getDay();
+  if (dayOfWeek === 0) {
+    console.log('[absentCheck] Yakshanba — skip');
+    return;
+  }
+
   const res = await pool.query(
     `INSERT INTO work_sessions (user_id, work_date, status, is_finished)
      SELECT u.id, CURRENT_DATE, 'absent', true
@@ -20,7 +26,7 @@ async function markAbsentStaff() {
 }
 
 function register() {
-  cron.schedule('0 10 * * 1-5', () => {
+  cron.schedule('0 10 * * 1-6', () => {
     markAbsentStaff().catch((e) => console.error('[absentCheck.job]', e));
   });
 }

@@ -338,6 +338,10 @@ async function getToday(userId) {
   const isAfterWork  = nowMins > WORK_END_MINS;
   const hasActiveLog = activeLog !== null;
 
+  const dayOfWeek = now.getDay();
+  const isWeekend = dayOfWeek === 0;
+  const isDayOff = dayOfWeek === 0;
+
   const liveRegular  = Math.min(liveTotal, 8 * 3600);
   // Overtime only accrues when staff is actively inside a building AND it is past 16:30
   const liveOvertime = (isAfterWork && hasActiveLog)
@@ -363,6 +367,8 @@ async function getToday(userId) {
     hasActiveLog,
     activeLog,
     logs,
+    isWeekend,
+    isDayOff,
   };
 }
 

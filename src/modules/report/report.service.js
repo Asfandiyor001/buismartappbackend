@@ -5,15 +5,15 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
+/** Ish kunlari: Yakshanbadan boshqa barcha kunlar (Dushanba–Shanba). */
 function workdaysInMonth(year, month) {
-  let count = 0;
-  const d = new Date(year, month - 1, 1);
-  while (d.getMonth() === month - 1) {
-    const wd = d.getDay();
-    if (wd !== 0 && wd !== 6) count += 1;
-    d.setDate(d.getDate() + 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let workdays = 0;
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow !== 0) workdays += 1;
   }
-  return count;
+  return workdays;
 }
 
 function addDaysYmd(ymd, days) {
@@ -41,7 +41,27 @@ function isCurrentMonth(year, month) {
 async function getDailyReport(userId, date) {
   const workDate = date && String(date).match(/^\d{4}-\d{2}-\d{2}$/) ? date : todayStr();
   const res = await pool.query(
-    `SELECT ws.*,
+    `SELECT
+      ws.id,
+      TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+      ws.user_id,
+      TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
+      TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time,
+      ws.total_seconds,
+      ws.regular_seconds,
+      ws.overtime_seconds,
+      ws.break_seconds,
+      ws.status,
+      ws.is_finished,
+      ws.finished_at,
+      ws.buildings_visited,
+      ws.building_switches,
+      ws.notes,
+      ws.created_at,
+      ws.updated_at,
+      ws.last_ping_at,
+      ws.outside_since,
+      ws.auto_checkout,
       COALESCE(
         json_agg(
           json_build_object(
@@ -109,9 +129,11 @@ async function getDailyReport(userId, date) {
 async function getWeeklyReport(userId, fromDate) {
   const toExclusive = addDaysYmd(fromDate, 7);
   const res = await pool.query(
-    `SELECT ws.work_date, ws.status,
+    `SELECT TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+            ws.status,
             ws.total_seconds, ws.regular_seconds, ws.overtime_seconds,
-            ws.first_entry_time, ws.last_exit_time,
+            TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
+            TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time,
             ws.buildings_visited, ws.building_switches,
             COUNT(wl.id)::int AS log_count,
             COALESCE(
@@ -137,9 +159,11 @@ async function getWeeklyReport(userId, fromDate) {
   const byDate = new Map();
   for (const r of res.rows) {
     const key =
-      r.work_date instanceof Date
-        ? todayStr(r.work_date)
-        : String(r.work_date).slice(0, 10);
+      typeof r.work_date === 'string'
+        ? r.work_date.slice(0, 10)
+        : r.work_date instanceof Date
+          ? todayStr(r.work_date)
+          : String(r.work_date).slice(0, 10);
     const bd =
       typeof r.building_breakdown === 'string'
         ? JSON.parse(r.building_breakdown)
@@ -217,9 +241,12 @@ async function getWeeklyReport(userId, fromDate) {
 
 async function computeMonthlyFromSessions(userId, year, month) {
   const res = await pool.query(
-    `SELECT ws.work_date, ws.status,
+    `SELECT TO_CHAR(ws.work_date, 'YYYY-MM-DD') AS work_date,
+            ws.status,
             ws.total_seconds, ws.regular_seconds, ws.overtime_seconds,
-            ws.buildings_visited, ws.first_entry_time, ws.last_exit_time
+            ws.buildings_visited,
+            TO_CHAR(ws.first_entry_time, 'HH24:MI:SS') AS first_entry_time,
+            TO_CHAR(ws.last_exit_time, 'HH24:MI:SS') AS last_exit_time
      FROM work_sessions ws
      WHERE ws.user_id = $1
        AND EXTRACT(YEAR FROM ws.work_date) = $2
