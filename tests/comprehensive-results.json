@@ -1,12 +1,12 @@
 {
-  "date": "2026-05-07T10:39:55.987Z",
+  "date": "2026-05-10T04:29:56.902Z",
   "backend": "https://creation-informative-absence-neural.trycloudflare.com",
   "summary": {
-    "pass": 57,
-    "fail": 4,
+    "pass": 58,
+    "fail": 3,
     "warn": 0,
     "total": 61,
-    "percentage": 93
+    "percentage": 95
   },
   "byCategory": {
     "AUTH": {
@@ -14,7 +14,7 @@
       "total": 9
     },
     "PROFILE": {
-      "pass": 6,
+      "pass": 7,
       "total": 7
     },
     "WORK": {
@@ -138,8 +138,8 @@
     {
       "category": "PROFILE",
       "name": "Ta'til so'rovi yuborish",
-      "status": "FAIL",
-      "error": "Ta'til so'rovi yuborilmadi: Bu sanalarda ta'lingiz allaqachon mavjud"
+      "status": "PASS",
+      "note": "So'rov yuborildi ✓"
     },
     {
       "category": "PROFILE",
@@ -151,13 +151,13 @@
       "category": "WORK",
       "name": "Bugungi sessiya",
       "status": "PASS",
-      "note": "Status: active, Live: 566s"
+      "note": "Sessiya yo'q"
     },
     {
       "category": "WORK",
       "name": "Aktiv log",
       "status": "PASS",
-      "note": "Bino: Bino 1 — Asosiy bino"
+      "note": "Aktiv log yo'q"
     },
     {
       "category": "WORK",
@@ -181,7 +181,7 @@
       "category": "GPS",
       "name": "GPS ping — Bino 1 ichida (39.741066, 64.427637)",
       "status": "PASS",
-      "note": "Action: inside_same"
+      "note": "Action: auto_checkin"
     },
     {
       "category": "GPS",
@@ -217,13 +217,13 @@
       "category": "REPORTS",
       "name": "Kunlik hisobot (bugun)",
       "status": "PASS",
-      "note": "Sana: 2026-05-07"
+      "note": "Sana: 2026-05-10"
     },
     {
       "category": "REPORTS",
       "name": "Oylik hisobot",
       "status": "PASS",
-      "note": "Kelgan: 4 kun"
+      "note": "Kelgan: 5 kun"
     },
     {
       "category": "REPORTS",
@@ -253,7 +253,7 @@
       "category": "NOTIFICATIONS",
       "name": "Xabarnomalar ro'yxati",
       "status": "PASS",
-      "note": "20 ta, O'qilmagan: 1"
+      "note": "20 ta, O'qilmagan: 3"
     },
     {
       "category": "NOTIFICATIONS",
@@ -277,19 +277,19 @@
       "category": "ADMIN",
       "name": "Hozir aktiv xodimlar",
       "status": "PASS",
-      "note": "2 ta aktiv xodim"
+      "note": "1 ta aktiv xodim"
     },
     {
       "category": "ADMIN",
       "name": "Bugun kelmagan xodimlar",
       "status": "PASS",
-      "note": "13 ta kelmagan"
+      "note": "14 ta kelmagan"
     },
     {
       "category": "ADMIN",
       "name": "Admin overview — barcha statistika",
       "status": "PASS",
-      "note": "Jami: 13, Aktiv: 2, Yo'q: 11"
+      "note": "Jami: 13, Aktiv: 1, Yo'q: 12"
     },
     {
       "category": "ADMIN",
@@ -307,7 +307,7 @@
       "category": "ADMIN",
       "name": "Xodim ta'tillari (admin)",
       "status": "PASS",
-      "note": "1 ta ta'til"
+      "note": "2 ta ta'til"
     },
     {
       "category": "ADMIN",
@@ -319,7 +319,7 @@
       "category": "ADMIN",
       "name": "Xodim ish loglari (admin)",
       "status": "PASS",
-      "note": "2 ta log"
+      "note": "1 ta log"
     },
     {
       "category": "ADMIN",
