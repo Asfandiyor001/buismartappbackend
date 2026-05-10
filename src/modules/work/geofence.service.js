@@ -15,6 +15,12 @@ const WORK_END_HOUR = 16;
 const WORK_END_MINUTE = 30;
 const REGULAR_CAP = 8 * 3600;
 
+const workEndOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(WORK_END_HOUR, WORK_END_MINUTE, 0, 0);
+  return d;
+};
+
 function isPastWorkEnd(date = new Date()) {
   const h = date.getHours();
   const m = date.getMinutes();
@@ -161,8 +167,9 @@ async function closeActiveLog(logId, exitTime, reason, client) {
 }
 
 /**
- * Admin / cron helper: sessions stuck "active" with no fresh ping are closed at last_ping_at.
- * Exit time = last known live moment; checkout_reason = system_timeout.
+ * Admin / cron helper: sessions stuck "active" with no fresh ping are finalized.
+ * Open logs from today close at current time; older logs close at 16:30 on the log's calendar day
+ * (avoids stamping stale sessions with "now" after downtime). checkout_reason = system_timeout.
  */
 async function finalizeInactiveSessions() {
   const staleMin = Number(INACTIVE_SESSION_MINUTES);
@@ -209,19 +216,29 @@ async function finalizeInactiveSessions() {
         continue;
       }
 
-      const exitAt = sess.last_ping_at;
+      let exitAt = sess.last_ping_at;
 
       const { rows: activeLogs } = await client.query(
         `
-        SELECT id FROM work_logs
+        SELECT id, entry_time FROM work_logs
         WHERE session_id = $1 AND is_active = true
         LIMIT 1
       `,
         [sess.id]
       );
 
-      if (activeLogs[0]) {
-        await closeActiveLog(activeLogs[0].id, exitAt, 'system_timeout', client);
+      const activeLog = activeLogs[0];
+      if (activeLog) {
+        const logDate = new Date(activeLog.entry_time).toDateString();
+        const today = new Date().toDateString();
+        let proposedExitTime;
+        if (logDate === today) {
+          proposedExitTime = new Date();
+        } else {
+          proposedExitTime = workEndOfDay(activeLog.entry_time);
+        }
+        exitAt = safeExitTime(activeLog.entry_time, proposedExitTime);
+        await closeActiveLog(activeLog.id, proposedExitTime, 'system_timeout', client);
       }
 
       const totals = await recalcSession(sess.id, client);
