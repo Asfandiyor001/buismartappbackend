@@ -3,8 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'https://creation-informative-absence-neural.trycloudflare.com/api';
-const H = { 'Content-Type': 'application/json', 'cloudflare-skip-browser-warning': 'true' };
+const BASE = 'https://fit-bless-embolism.ngrok-free.dev/api';
+const H = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+  'cloudflare-skip-browser-warning': 'true',
+};
 
 let tokens = {};
 let results = { pass: 0, fail: 0, warn: 0, tests: [] };
@@ -1084,7 +1088,7 @@ async function runAll() {
 
   const report = {
     date: new Date().toISOString(),
-    backend: 'https://creation-informative-absence-neural.trycloudflare.com',
+    backend: 'https://fit-bless-embolism.ngrok-free.dev',
     summary: { pass: results.pass, fail: results.fail, warn: results.warn, total, percentage: pct },
     byCategory: Object.fromEntries(
       categories.map((cat) => {

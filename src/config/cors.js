@@ -1,17 +1,24 @@
+const allowedOrigins = [
+  /\.ngrok-free\.app$/,
+  /\.ngrok-free\.dev$/,
+  /\.ngrok\.io$/,
+  /\.trycloudflare\.com$/,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:8081',
+  'http://localhost:19006',
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
 
-    const allowed = [
-      /^https?:\/\/localhost(:\d+)?$/,
-      /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
-      /\.trycloudflare\.com$/,
-      /^exp:\/\//,
-    ];
+    const allowed = allowedOrigins.some((entry) =>
+      typeof entry === 'string' ? origin === entry : entry.test(origin),
+    );
 
-    if (allowed.some(pattern => pattern.test(origin))) {
+    if (allowed) {
       return callback(null, true);
     }
 

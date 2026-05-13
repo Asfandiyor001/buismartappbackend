@@ -1,7 +1,8 @@
-const BASE_URL = 'https://creation-informative-absence-neural.trycloudflare.com/api'
+const BASE_URL = 'https://fit-bless-embolism.ngrok-free.dev/api'
 const headers = {
   'Content-Type': 'application/json',
-  'cloudflare-skip-browser-warning': 'true'
+  'ngrok-skip-browser-warning': 'true',
+  'cloudflare-skip-browser-warning': 'true',
 }
 
 let staffToken = ''
