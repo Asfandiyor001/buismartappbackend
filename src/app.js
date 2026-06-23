@@ -89,6 +89,15 @@ app.get('/', (req, res) => {
   });
 });
 
+// ── Remote config (mobil ilova shu yerdan API URL ni oladi) ──
+// O'z domenini avtomatik qaytaradi (trust proxy → https).
+// Kerak bo'lsa PUBLIC_API_URL env bilan boshqa qiymat berish mumkin.
+app.get('/config.json', (req, res) => {
+  const apiUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
+  res.set('Cache-Control', 'no-store');
+  res.json({ apiUrl });
+});
+
 // ── API version headers ─────────────────────────────────
 app.use('/api', (req, res, next) => {
   res.setHeader('X-API-Version', '2.0.0');
