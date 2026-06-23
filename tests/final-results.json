@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-06-12T10:57:14.845Z",
+  "base_url": "http://localhost:5000",
+  "passed": 97,
+  "failed": 0,
+  "skipped": 0,
+  "total": 97,
+  "pct": 100,
+  "sections": {
+    "10": {
+      "title": "WORK SESSION",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "11": {
+      "title": "SESSION DURATION INTEGRITY",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "12": {
+      "title": "MONTHLY REPORTS (6 oy)",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "13": {
+      "title": "PUSH NOTIFICATION SYSTEM",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "14": {
+      "title": "18:00 AUTO-CLOSE CRON",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "15": {
+      "title": "ADMIN PANEL ENDPOINTLARI",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "16": {
+      "title": "SECURITY — STAFF ADMIN GA KIRA OLMAYDI",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "17": {
+      "title": "ERROR HANDLING",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "18": {
+      "title": "ABET VAQTI (13:00-14:00)",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "19": {
+      "title": "BACKGROUND GPS — Drift simulatsiya",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "20": {
+      "title": "TOKEN & RATE LIMITING",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "01": {
+      "title": "LOGIN & AUTH",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "02": {
+      "title": "TOKEN VERIFICATION",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "03": {
+      "title": "USER PROFILE",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "04": {
+      "title": "BUILDINGS DATA INTEGRITY",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "05": {
+      "title": "GPS PING — INSIDE (BuxDU binosi)",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "06": {
+      "title": "GPS PING — OUTSIDE (Toshkent)",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "07": {
+      "title": "GPS DEBOUNCE (15 soniya)",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "08": {
+      "title": "CONSECUTIVE OUTSIDE PINGS (2+ talab)",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "09": {
+      "title": "OFFLINE QUEUE",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "errors": [],
+  "verdict": "APK_READY"
+}

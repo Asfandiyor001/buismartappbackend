@@ -1,4 +1,3 @@
-cat > ./database/migrations/006_buildings.sql << 'EOF'
 CREATE TABLE buildings (
   id          SERIAL PRIMARY KEY,
   name        VARCHAR(100) NOT NULL,
@@ -19,4 +18,3 @@ INSERT INTO buildings (name, short_name, description, latitude, longitude, radiu
 ('Bino 2 — Laboratoriya', 'Bino 2',    'Ilmiy-tadqiqot markazi.', 39.740624, 64.432623, 100, 3, 24, 'Buxoro shahri, Islom Karimov kochasi, 3-uy', true),
 ('Bino 3 — Kutubxona',    'Bino 3',    'Malumot resurs markazi.', 39.740200, 64.434800, 80,  2, 15, 'Buxoro shahri, Gijduvon kochasi, 10-uy', true),
 ('Admin uyi — Boshqaruv', 'Admin uyi', 'Universitet maqmuriyati.', 39.747389, 64.425345, 150, 2, 12, 'Buxoro shahri, M.Iqbol kochasi, 2-uy', true);
-EOF

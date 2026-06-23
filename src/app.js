@@ -89,6 +89,14 @@ app.get('/', (req, res) => {
   });
 });
 
+// ── API version headers ─────────────────────────────────
+app.use('/api', (req, res, next) => {
+  res.setHeader('X-API-Version', '2.0.0');
+  res.setHeader('X-Min-App-Version', '1.0.0');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 // ── API routes ──────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/work', workRoutes);

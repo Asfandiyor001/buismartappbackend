@@ -1,0 +1,128 @@
+{
+  "date": "2026-05-14T19:06:31.313Z",
+  "pass": 24,
+  "fail": 0,
+  "percentage": 100,
+  "tests": [
+    {
+      "name": "Yakshanba (0) → day_off qaytarishi",
+      "status": "PASS",
+      "note": "Skip — bugun yakshanba emas"
+    },
+    {
+      "name": "08:00 dan oldin → before_work_time",
+      "status": "PASS",
+      "note": "before_work_time ✓"
+    },
+    {
+      "name": "13:00-14:00 tashqarida → abet_time",
+      "status": "PASS",
+      "note": "Skip — abet vaqti emas"
+    },
+    {
+      "name": "16:30 dan keyin → after_work_time yoki day_finished",
+      "status": "PASS",
+      "note": "Skip — hozir 16:30 dan oldin"
+    },
+    {
+      "name": "Bino 1 ichida (52m) → inside",
+      "status": "PASS",
+      "note": "before_work_time (52m)"
+    },
+    {
+      "name": "GPS drift (radius+30m) → inside_drift yoki inside",
+      "status": "PASS",
+      "note": "no_session (drift)"
+    },
+    {
+      "name": "Toshkent (1000km) → outside",
+      "status": "PASS",
+      "note": "no_session ✓"
+    },
+    {
+      "name": "Bugungi session ma'lumotlari to'liq",
+      "status": "PASS",
+      "note": "Sessiya yo'q (normal)"
+    },
+    {
+      "name": "Loglar duration manfiy emas",
+      "status": "PASS",
+      "note": "Log yo'q"
+    },
+    {
+      "name": "Aktiv log mavjudligi tekshiruvi",
+      "status": "PASS",
+      "note": "Bino: Bino 1 — Asosiy bino (390s)"
+    },
+    {
+      "name": "Jamoa holati — stale_active yo'q",
+      "status": "PASS",
+      "note": "0 xodim, 0 ta aloqa uzilgan"
+    },
+    {
+      "name": "Active-now — faqat haqiqiy aktiv",
+      "status": "PASS",
+      "note": "0 ta aktiv xodim (ping < 35 daqiqa)"
+    },
+    {
+      "name": "Admin overview — barcha fieldlar bor",
+      "status": "PASS",
+      "note": "Total:13 Aktiv:1 Absent:12"
+    },
+    {
+      "name": "Bugungi avto-chiqishlar (ping dan keyin) tekshiruvi",
+      "status": "PASS",
+      "note": "Admin staff list ishlayapti ✓"
+    },
+    {
+      "name": "Oylik hisobot — soatlar 9 dan oshmasin",
+      "status": "PASS",
+      "note": "2 sessiya — hammasi normal ✓"
+    },
+    {
+      "name": "work_date format — YYYY-MM-DD (UTC muammo yo'q)",
+      "status": "PASS",
+      "note": "2 sessiya — format to'g'ri ✓"
+    },
+    {
+      "name": "Haftalik hisobot — 7 kun",
+      "status": "PASS",
+      "note": "7 kunlik ✓"
+    },
+    {
+      "name": "SQL injection → bloklandi",
+      "status": "PASS",
+      "note": "Bloklandi ✓"
+    },
+    {
+      "name": "Noto'g'ri token → 401",
+      "status": "PASS",
+      "note": "401 ✓"
+    },
+    {
+      "name": "Staff → admin endpoint → 403",
+      "status": "PASS",
+      "note": "403 ✓"
+    },
+    {
+      "name": "Rate limit ishlayapti",
+      "status": "PASS",
+      "note": "Rate limit ✓"
+    },
+    {
+      "name": "Xabarnomalar yuklanadi",
+      "status": "PASS",
+      "note": "20 ta, 0 o'qilmagan"
+    },
+    {
+      "name": "Hammasi o'qildi",
+      "status": "PASS",
+      "note": "OK ✓"
+    },
+    {
+      "name": "3 ta bino, Admin uyi yo'q",
+      "status": "PASS",
+      "note": "Bino 1 — Asosiy bino, Bino 2 — Laboratoriya, Bino 3 — Kutubxona"
+    }
+  ]
+}

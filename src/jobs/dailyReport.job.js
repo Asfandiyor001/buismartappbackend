@@ -18,6 +18,11 @@ function clearRetryTimerFor(targetDate) {
   }
 }
 
+// dailyReport (23:59) — zaxira yopuvchi.
+// autoClose (18:00) allaqachon is_finished=true qilgan sessiyalarga tegmaydi
+// (WHERE is_finished = false — idempotentlik).
+// last_exit_time: faqat NULL bo'lsa '16:30:00' yoziladi — autoClose
+// yozgan qiymatni qayta o'zgartirmasligi uchun COALESCE ishlatiladi.
 async function autoCloseOpenSessions() {
   const sessionsRes = await pool.query(
     `SELECT id, user_id FROM work_sessions
@@ -30,14 +35,6 @@ async function autoCloseOpenSessions() {
     try {
       await client.query('BEGIN');
 
-      const logRes = await client.query(
-        `SELECT * FROM work_logs
-         WHERE session_id = $1 AND is_active = true
-         LIMIT 1`,
-        [ws.id]
-      );
-      const activeLog = logRes.rows[0];
-
       // Use 16:30 Tashkent time (+05) as the canonical exit time so cron
       // running at 23:59 does not count the gap as worked hours.
       // Pass an explicit timezone-offset string to avoid timestamptz vs
@@ -45,19 +42,29 @@ async function autoCloseOpenSessions() {
       const todayDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
       const workEndStr = `${todayDate} 16:30:00+05`;
 
-      if (activeLog) {
-        const safeExit = safeExitTime(activeLog.entry_time, workEndStr);
-        await client.query(
-          `UPDATE work_logs SET
-             exit_time = $1::timestamptz,
-             exit_lat = COALESCE(entry_lat, 0),
-             exit_lon = COALESCE(entry_lon, 0),
-             duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::int,
-             is_active = false
-           WHERE id = $2`,
-          [safeExit, activeLog.id]
-        );
-      }
+      // SQL GREATEST prevents sub-millisecond precision mismatch (exit < entry) violations.
+      await client.query(
+        `UPDATE work_logs SET
+           exit_time = GREATEST(
+             entry_time + INTERVAL '1 millisecond',
+             $1::timestamptz
+           ),
+           exit_lat = COALESCE(entry_lat, 0),
+           exit_lon = COALESCE(entry_lon, 0),
+           duration_seconds = GREATEST(0,
+             EXTRACT(EPOCH FROM (
+               GREATEST(
+                 entry_time + INTERVAL '1 millisecond',
+                 $1::timestamptz
+               ) - entry_time
+             ))::INT
+           ),
+           is_active = false,
+           checkout_reason = 'system_timeout'
+         WHERE session_id = $2
+           AND is_active = true`,
+        [workEndStr, ws.id]
+      );
 
       const sumRes = await client.query(
         `SELECT COALESCE(SUM(duration_seconds), 0)::bigint AS total
@@ -69,12 +76,13 @@ async function autoCloseOpenSessions() {
       // Cron fires at 23:59 — always past work end, so any seconds over 8 h are overtime
       const overtimeSeconds = Math.max(0, total - REGULAR_CAP);
 
+      // last_exit_time: autoClose allaqachon yozgan bo'lsa qayta o'zgartirma
       await client.query(
         `UPDATE work_sessions SET
            total_seconds = $1,
            regular_seconds = $2,
            overtime_seconds = $3,
-           last_exit_time = '16:30:00',
+           last_exit_time = COALESCE(last_exit_time, '16:30:00'),
            updated_at = NOW(),
            is_finished = true,
            finished_at = $4,
@@ -116,27 +124,30 @@ async function autoCloseOpenSessionsForDate(targetDate) {
     try {
       await client.query('BEGIN');
 
-      const logRes = await client.query(
-        `SELECT * FROM work_logs
-         WHERE session_id = $1 AND is_active = true
-         LIMIT 1`,
-        [ws.id]
+      // Close all active logs for this session using SQL GREATEST to avoid
+      // sub-millisecond precision mismatch (exit < entry) constraint violations.
+      await client.query(
+        `UPDATE work_logs SET
+           exit_time = GREATEST(
+             entry_time + INTERVAL '1 millisecond',
+             $1::timestamptz
+           ),
+           exit_lat = COALESCE(entry_lat, 0),
+           exit_lon = COALESCE(entry_lon, 0),
+           duration_seconds = GREATEST(0,
+             EXTRACT(EPOCH FROM (
+               GREATEST(
+                 entry_time + INTERVAL '1 millisecond',
+                 $1::timestamptz
+               ) - entry_time
+             ))::INT
+           ),
+           is_active = false,
+           checkout_reason = 'system_timeout'
+         WHERE session_id = $2
+           AND is_active = true`,
+        [workEndStr, ws.id]
       );
-      const activeLog = logRes.rows[0];
-
-      if (activeLog) {
-        const safeExit = safeExitTime(activeLog.entry_time, workEndStr);
-        await client.query(
-          `UPDATE work_logs SET
-             exit_time = $1::timestamptz,
-             exit_lat = COALESCE(entry_lat, 0),
-             exit_lon = COALESCE(entry_lon, 0),
-             duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::int,
-             is_active = false
-           WHERE id = $2`,
-          [safeExit, activeLog.id]
-        );
-      }
 
       const sumRes = await client.query(
         `SELECT COALESCE(SUM(duration_seconds), 0)::bigint AS total
@@ -147,12 +158,13 @@ async function autoCloseOpenSessionsForDate(targetDate) {
       const regularSeconds = Math.min(total, REGULAR_CAP);
       const overtimeSeconds = Math.max(0, total - REGULAR_CAP);
 
+      // last_exit_time: autoClose allaqachon yozgan bo'lsa qayta o'zgartirma
       await client.query(
         `UPDATE work_sessions SET
            total_seconds = $1,
            regular_seconds = $2,
            overtime_seconds = $3,
-           last_exit_time = '16:30:00',
+           last_exit_time = COALESCE(last_exit_time, '16:30:00'),
            updated_at = NOW(),
            is_finished = true,
            finished_at = $4,

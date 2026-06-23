@@ -1,0 +1,1 @@
+monthly_reports INSERT xatosi (user=29, 2026/5): столбец "total_work_days" в таблице "monthly_reports" не существует

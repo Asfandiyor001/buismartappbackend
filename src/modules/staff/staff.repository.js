@@ -1,4 +1,9 @@
 const pool = require('../../config/database');
+const { workedSecondsSql } = require('../../utils/workTime');
+
+// Kanonik "ishlangan soniya" ifodasi — ws (today_sessions) aliasi uchun.
+// logSum override: log_stats CTE'dagi worked_seconds (jonli aktiv-log vaqtini ham qamraydi).
+const WORKED_SECONDS = workedSecondsSql('ws', 'COALESCE(ls.worked_seconds, 0)');
 
 /**
  * Single-query team status for today: log aggregates, last checkout, intervals — no per-row subqueries.
@@ -19,6 +24,7 @@ today_sessions AS (
     id,
     user_id,
     status,
+    is_finished,
     auto_checkout,
     last_ping_at,
     outside_since,
@@ -96,21 +102,38 @@ SELECT
   u.phone,
   ss.position AS position,
   p.department,
-  ws.status AS work_status,
+  -- Real-time work_status: outside (left geofence) > stale (no recent ping) > active
+  CASE
+    WHEN ws.status = 'active'
+      AND ws.outside_since IS NOT NULL
+    THEN 'outside'
+    WHEN ws.status = 'active'
+      AND COALESCE(ls.has_active_log, false) = true
+      AND ws.last_ping_at IS NOT NULL
+      AND ws.last_ping_at >= NOW() - INTERVAL '35 minutes'
+    THEN 'active'
+    WHEN ws.status = 'active'
+      AND (ws.last_ping_at IS NULL OR ws.last_ping_at < NOW() - INTERVAL '35 minutes')
+    THEN 'stale_active'
+    ELSE COALESCE(ws.status, 'offline')
+  END AS work_status,
   ws.first_entry_time,
   ws.outside_since,
   ws.last_ping_at,
   ws.last_exit_time,
   ws.auto_checkout AS session_auto_checkout,
   al.active_log_entry_time,
+  al.active_building_id,
   lc.last_checkout_reason,
   lc.last_checkout_reason AS checkout_reason,
   json_build_object(
     'entry_time', lc.last_log_entry_time,
     'exit_time', lc.last_log_exit_time
   ) AS last_log_details,
-  COALESCE(ls.worked_seconds, 0)::bigint AS total_work_seconds,
-  FLOOR(COALESCE(ls.worked_seconds, 0) / 60)::int AS total_work_minutes,
+  -- Kanonik ish vaqti: GREATEST(loglar yig'indisi, kirish→chiqish oraliq − abet), 9s cap.
+  -- GPS uzilishi tufayli yo'qolgan bo'shliqlarni oraliq vaqt to'ldiradi.
+  ${WORKED_SECONDS} AS total_work_seconds,
+  FLOOR(${WORKED_SECONDS} / 60)::int AS total_work_minutes,
   GREATEST(
     60::bigint,
     COALESCE(
@@ -124,7 +147,7 @@ SELECT
   ) AS scheduled_seconds,
   ROUND(
     (
-      COALESCE(ls.worked_seconds, 0)::numeric
+      ${WORKED_SECONDS}::numeric
       / NULLIF(
           GREATEST(
             60::bigint,
@@ -143,14 +166,20 @@ SELECT
     2
   ) AS performance_percent,
   CASE
-    WHEN COALESCE(ls.has_active_log, false) THEN 'Ishda'
+    WHEN COALESCE(ls.has_active_log, false)
+      AND ws.last_ping_at IS NOT NULL
+      AND ws.last_ping_at >= NOW() - INTERVAL '35 minutes' THEN 'Ishda'
+    WHEN COALESCE(ls.has_active_log, false)
+      AND (ws.last_ping_at IS NULL OR ws.last_ping_at < NOW() - INTERVAL '35 minutes') THEN 'Aloqa yo''q'
     WHEN ws.auto_checkout
       OR lc.last_checkout_reason IN ('auto_gps', 'gps_lost', 'system_timeout')
       THEN 'Avto-chiqish'
     ELSE 'Offline'
   END AS status_label,
   COALESCE(ls.gps_lost_count, 0)::int AS gps_lost_count,
-  li.work_log_intervals
+  li.work_log_intervals,
+  b.name AS building_name,
+  b.short_name AS building_short
 FROM staff_scope ss
 JOIN users u ON u.id = ss.user_id
 JOIN staff_profiles p ON p.user_id = u.id
@@ -159,6 +188,7 @@ LEFT JOIN log_stats ls ON ls.session_id = ws.id
 LEFT JOIN last_closed lc ON lc.session_id = ws.id
 LEFT JOIN active_log al ON al.session_id = ws.id
 LEFT JOIN log_intervals li ON li.session_id = ws.id
+LEFT JOIN buildings b ON b.id = al.active_building_id
 `;
 
 const TEAM_STATUS_SQL_ADMIN = `
@@ -169,9 +199,7 @@ WITH staff_scope AS (
     p.position AS position
   FROM users u
   INNER JOIN staff_profiles p ON p.user_id = u.id
-  WHERE u.role = 'staff'
-    AND u.is_active = true
-    AND u.id <> $1::int
+  WHERE u.role IN ('staff', 'admin', 'prorektor')
 ),
 ${TEAM_CORE}
 ${SELECT_ROW}

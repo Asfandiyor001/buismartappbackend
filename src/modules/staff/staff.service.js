@@ -85,7 +85,7 @@ async function getProfile(userId) {
        sp.notes, sp.work_days
      FROM users u
      LEFT JOIN staff_profiles sp ON sp.user_id = u.id
-     WHERE u.id = $1 AND u.role IN ('staff', 'admin')`,
+     WHERE u.id = $1 AND u.role IN ('staff', 'admin', 'prorektor')`,
     [userId]
   );
   const row = res.rows[0];
@@ -103,11 +103,11 @@ async function getProfile(userId) {
 async function updateProfile(userId, data) {
   const profileCheck = await pool.query(
     `SELECT u.id FROM users u
-     WHERE u.id = $1 AND u.role = 'staff'`,
+     WHERE u.id = $1 AND u.role IN ('staff', 'admin', 'prorektor')`,
     [userId]
   );
   if (profileCheck.rows.length === 0) {
-    throw new Error('Faqat xodimlar profilini yangilashi mumkin');
+    throw new Error('Xodim profili topilmadi');
   }
 
   const updates = [];
@@ -311,8 +311,9 @@ async function getWorkStats(userId) {
 
   const monthRes = await pool.query(
     `SELECT
-       COUNT(*) FILTER (WHERE status IN ('done', 'active'))::int AS present_days,
-       COUNT(*) FILTER (WHERE status = 'absent')::int AS absent_days,
+       COUNT(*) FILTER (WHERE status IN ('done', 'active', 'present', 'late'))::int AS present_days,
+       COUNT(*) FILTER (WHERE status = 'absent')::int AS marked_absent_days,
+       COUNT(*) FILTER (WHERE status = 'vacation')::int AS vacation_days,
        COALESCE(SUM(total_seconds), 0)::bigint AS total_seconds,
        COALESCE(SUM(overtime_seconds), 0)::bigint AS overtime_seconds,
        AVG(total_seconds)::float AS avg_seconds_per_day
@@ -324,15 +325,16 @@ async function getWorkStats(userId) {
   );
   const mr = monthRes.rows[0];
   const presentDays = Number(mr.present_days) || 0;
-  const absentDays = Number(mr.absent_days) || 0;
+  const absentDays = Number(mr.marked_absent_days) || 0;
+  const vacationDays = Number(mr.vacation_days) || 0;
   const totalSeconds = Number(mr.total_seconds) || 0;
   const overtimeSeconds = Number(mr.overtime_seconds) || 0;
   const avgSeconds =
     mr.avg_seconds_per_day != null ? Number(mr.avg_seconds_per_day) : 0;
 
-  const workdays = workdaysInMonth(y, m);
+  const denominator = presentDays + absentDays + vacationDays;
   const attendancePct =
-    workdays > 0 ? Math.round((presentDays / workdays) * 10000) / 100 : 0;
+    denominator > 0 ? Math.round((presentDays / denominator) * 10000) / 100 : 0;
 
   const monday = mondayStrThisWeek(now);
   const weekEndExclusive = addDaysYmd(monday, 7);
@@ -431,12 +433,17 @@ async function getTeamStatus(viewerId, role) {
   await geofenceService.finalizeInactiveSessions();
 
   if (role === 'admin') {
-    const { rows } = await staffRepository.findTeamStatusToday('admin', [uid]);
+    const { rows } = await staffRepository.findTeamStatusToday('admin', []);
     return { team: rows.map(normalizeTeamStatusRow) };
   }
 
   if (role === 'staff') {
     const { rows } = await staffRepository.findTeamStatusToday('staff', [uid, uid]);
+    return { team: rows.map(normalizeTeamStatusRow) };
+  }
+
+  if (role === 'prorektor') {
+    const { rows } = await staffRepository.findTeamStatusToday('admin', []);
     return { team: rows.map(normalizeTeamStatusRow) };
   }
 

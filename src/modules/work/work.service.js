@@ -1,6 +1,7 @@
 const pool = require('../../config/database');
 const { isInsideBuilding } = require('../../utils/gps');
 const { nowStr, todayStr, formatDuration } = require('../../utils/time');
+const { workedSecondsSql } = require('../../utils/workTime');
 
 const WORK_END_HOUR = 16;
 const WORK_END_MINUTE = 30;
@@ -40,7 +41,7 @@ function addDaysYmd(ymd, days) {
 async function checkIn(userId, buildingId, lat, lon) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
 
     const bRes = await client.query(
       'SELECT * FROM buildings WHERE id = $1 AND is_active = true',
@@ -253,24 +254,10 @@ async function getToday(userId) {
     `SELECT
       ws.*,
 
-      -- Live total: closed logs + current active log duration
-      (
-        COALESCE(
-          (SELECT SUM(duration_seconds)
-           FROM work_logs
-           WHERE session_id = ws.id
-             AND is_active = false
-             AND duration_seconds IS NOT NULL),
-        0)
-        +
-        COALESCE(
-          (SELECT EXTRACT(EPOCH FROM (NOW() - entry_time))::INT
-           FROM work_logs
-           WHERE session_id = ws.id
-             AND is_active = true
-           LIMIT 1),
-        0)
-      ) AS live_total_seconds,
+      -- Live total: kanonik formula (kirish→hozir/chiqish oraliq − abet),
+      -- loglar yig'indisi bilan pollangan, 9 soatga cheklangan.
+      -- GPS uzilgan bo'shliqlarni oraliq vaqt to'ldiradi.
+      ${workedSecondsSql('ws')} AS live_total_seconds,
 
       -- Active log info
       (SELECT json_build_object(
@@ -505,6 +492,145 @@ async function resetTodaySession(userId) {
   return { message: 'Sessiya qayta faollashtirildi', sessionId: session.id };
 }
 
+/**
+ * Offline-sync: mobil ilova offline bo'lganda to'plagan ping-ni qayta ishlaydi.
+ *
+ * Maxsus holat 1 — Tushlik (13:00–14:00):
+ *   Checkin/checkout qilma, faqat last_ping_at yangilanadi.
+ *
+ * Maxsus holat 2 — EOD (16:30 dan keyin):
+ *   Aktiv sessiyani '16:30:00' bilan yopadi (kanonik EOD).
+ *   Agar sessiya allaqachon yopilgan bo'lsa — hech narsa qilmaydi (idempotent).
+ *
+ * Oddiy ping (07:00–13:00 va 14:00–16:30):
+ *   Mavjud sessiya mavjud bo'lsa last_ping_at yangilab qo'yadi,
+ *   aks holda hech narsa qilmaydi (checkin geofence orqali amalga oshiriladi).
+ *
+ * @param {number} userId
+ * @param {number} lat
+ * @param {number} lon
+ * @param {string|Date} timestamp — ping vaqti (ISO string yoki Date)
+ * @returns {{ action: string, sessionId?: number }}
+ */
+async function processPingAt(userId, lat, lon, timestamp) {
+  const pingTime = new Date(timestamp);
+  const pingHour = pingTime.getHours();
+  const pingMin = pingTime.getMinutes();
+  const pingMins = pingHour * 60 + pingMin;
+  const workDate = pingTime.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  // ── 1. Tushlik (13:00–14:00) — checkin/checkout qilma ──────────────────
+  // 13:00 = 780 daqiqa, 14:00 = 840 daqiqa
+  if (pingMins >= 780 && pingMins < 840) {
+    await pool.query(
+      `UPDATE work_sessions
+          SET last_ping_at = $1
+        WHERE user_id = $2
+          AND work_date = $3::date
+          AND is_finished = false`,
+      [pingTime.toISOString(), userId, workDate]
+    );
+    return { action: 'abet_skip' };
+  }
+
+  // ── 2. EOD (16:30 dan keyin) — aktiv sessiyani kanonik vaqt bilan yop ──
+  // 16:30 = 990 daqiqa
+  if (pingMins >= 990) {
+    // Kanonik checkout vaqti: o'sha kuni soat 16:30
+    const endTime = new Date(pingTime);
+    endTime.setHours(16, 30, 0, 0);
+    const endTimeStr = endTime.toISOString();
+
+    // Aktiv loglarni '16:30' bilan yopish (GREATEST — entry_time dan katta bo'lsin)
+    const sessionRes = await pool.query(
+      `SELECT id FROM work_sessions
+        WHERE user_id = $1
+          AND work_date = $2::date
+          AND is_finished = false
+        LIMIT 1`,
+      [userId, workDate]
+    );
+
+    if (sessionRes.rows.length === 0) {
+      // Sessiya allaqachon yopilgan — idempotent, hech narsa qilma
+      return { action: 'eod_already_closed' };
+    }
+
+    const sessionId = sessionRes.rows[0].id;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Aktiv loglarni yopish
+      await client.query(
+        `UPDATE work_logs SET
+           exit_time = GREATEST(entry_time + INTERVAL '1 millisecond', $1::timestamptz),
+           exit_lat = COALESCE(exit_lat, $2),
+           exit_lon = COALESCE(exit_lon, $3),
+           duration_seconds = GREATEST(0,
+             EXTRACT(EPOCH FROM (
+               GREATEST(entry_time + INTERVAL '1 millisecond', $1::timestamptz) - entry_time
+             ))::INT
+           ),
+           is_active = false,
+           checkout_reason = 'offline_eod'
+         WHERE session_id = $4
+           AND is_active = true`,
+        [endTimeStr, lat, lon, sessionId]
+      );
+
+      // Sessiyani yopish — kanonik EOD vaqti bilan
+      const sumRes = await client.query(
+        `SELECT COALESCE(SUM(duration_seconds), 0)::bigint AS total
+           FROM work_logs WHERE session_id = $1`,
+        [sessionId]
+      );
+      const total = Number(sumRes.rows[0].total);
+      const regularSeconds = Math.min(total, REGULAR_CAP);
+      const overtimeSeconds = Math.max(0, total - REGULAR_CAP);
+
+      await client.query(
+        `UPDATE work_sessions SET
+           is_finished = true,
+           status = 'done',
+           finished_at = $1,
+           last_exit_time = '16:30:00',
+           last_ping_at = $1,
+           total_seconds = $2,
+           regular_seconds = $3,
+           overtime_seconds = $4,
+           auto_checkout = true,
+           updated_at = NOW()
+         WHERE id = $5`,
+        [endTimeStr, total, regularSeconds, overtimeSeconds, sessionId]
+      );
+
+      await client.query('COMMIT');
+      return { action: 'eod_checkout', sessionId };
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        /* ignore */
+      }
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ── 3. Oddiy ping (ish soatlari ichida) — faqat last_ping_at yangilanadi ──
+  await pool.query(
+    `UPDATE work_sessions
+        SET last_ping_at = $1
+      WHERE user_id = $2
+        AND work_date = $3::date
+        AND is_finished = false`,
+    [pingTime.toISOString(), userId, workDate]
+  );
+  return { action: 'ping_updated' };
+}
+
 module.exports = {
   checkIn,
   checkOut,
@@ -513,4 +639,5 @@ module.exports = {
   getMonth,
   getActiveLog,
   resetTodaySession,
+  processPingAt,
 };

@@ -1,5 +1,4 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+// server.js da @dotenvx/dotenvx orqali yuklangan, shu sababli bu yerda qayta yuklamaymiz
 
 module.exports = {
   port: Number(process.env.PORT) || 5000,

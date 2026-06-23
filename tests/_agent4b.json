@@ -1,0 +1,36 @@
+{
+  "tests": [
+    {
+      "name": "checkin via live ping → session active",
+      "pass": true,
+      "detail": "action=auto_checkin"
+    },
+    {
+      "name": "SIM4 outside ping → outside_since SET",
+      "pass": true,
+      "detail": "action=outside_start outside_since=Sat Jun 20 2026 10:20:40 GMT+0500 (Узбекистан, стандартное время)"
+    },
+    {
+      "name": "SIM5 return inside → outside_since CLEARED",
+      "pass": true,
+      "detail": "action=inside_same outside_since=null"
+    },
+    {
+      "name": "SIM3 formula total_seconds = 27000 (±300)",
+      "pass": true,
+      "detail": "total=27000 (7.50h) regular=27000 ot=0"
+    },
+    {
+      "name": "SIM3 total ≤ 9h cap (32400)",
+      "pass": true,
+      "detail": "total=27000"
+    },
+    {
+      "name": "continuous presence (no lunch gap) → logSum floor counts lunch (8.5h, capped ≤9h)",
+      "pass": true,
+      "detail": "total=30600 (8.50h)"
+    }
+  ],
+  "passed": 6,
+  "total": 6
+}

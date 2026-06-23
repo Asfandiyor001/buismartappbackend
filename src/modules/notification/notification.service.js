@@ -74,6 +74,22 @@ async function deleteNotification(userId, notificationId) {
   return { success: true };
 }
 
+async function savePushToken(userId, pushToken) {
+  if (!pushToken || typeof pushToken !== 'string') {
+    throw new Error('push_token noto\'g\'ri');
+  }
+  const res = await pool.query(
+    `UPDATE users SET push_token = $1, updated_at = NOW()
+     WHERE id = $2
+     RETURNING id`,
+    [pushToken, userId]
+  );
+  if (res.rowCount === 0) {
+    throw new Error('Foydalanuvchi topilmadi');
+  }
+  return { success: true };
+}
+
 async function sendNotification(userId, type, title, body, data = null) {
   if (!ALLOWED_TYPES.has(String(type))) {
     throw new Error('Xabarnoma turi noto\'g\'ri');
@@ -93,4 +109,5 @@ module.exports = {
   markAllRead,
   deleteNotification,
   sendNotification,
+  savePushToken,
 };

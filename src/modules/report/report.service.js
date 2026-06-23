@@ -5,15 +5,40 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-/** Ish kunlari: Yakshanbadan boshqa barcha kunlar (Dushanba–Shanba). */
+/** Ish kunlari: faqat Dushanba–Juma, firstDate va bugundan keyin emas. */
 function workdaysInMonth(year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   let workdays = 0;
   for (let d = 1; d <= daysInMonth; d += 1) {
     const dow = new Date(year, month - 1, d).getDay();
-    if (dow !== 0) workdays += 1;
+    if (dow !== 0 && dow !== 6) workdays += 1;
   }
   return workdays;
+}
+
+/** Effective ish kunlari: firstDate dan bugunga qadar (joriy oy uchun). */
+function workdaysEffective(year, month, firstDateStr) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date();
+
+  let startDay = 1;
+  if (firstDateStr) {
+    const [fy, fm, fd] = String(firstDateStr).slice(0, 10).split('-').map(Number);
+    if (fy > year || (fy === year && fm > month)) return 0; // tizim hali boshlanmagan
+    if (fy === year && fm === month) startDay = fd;
+  }
+
+  let endDay = daysInMonth;
+  if (year === today.getFullYear() && month === today.getMonth() + 1) {
+    endDay = today.getDate();
+  }
+
+  let n = 0;
+  for (let d = startDay; d <= endDay; d += 1) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow !== 0 && dow !== 6) n += 1;
+  }
+  return n;
 }
 
 function addDaysYmd(ymd, days) {
@@ -240,6 +265,13 @@ async function getWeeklyReport(userId, fromDate) {
 }
 
 async function computeMonthlyFromSessions(userId, year, month) {
+  // Foydalanuvchining birinchi sessiya sanasini aniqlaymiz
+  const firstRes = await pool.query(
+    `SELECT MIN(work_date)::text AS first_date FROM work_sessions WHERE user_id = $1`,
+    [userId]
+  );
+  const firstDate = firstRes.rows[0]?.first_date || null;
+
   const res = await pool.query(
     `SELECT ws.work_date::text AS work_date,
             ws.status,
@@ -256,7 +288,8 @@ async function computeMonthlyFromSessions(userId, year, month) {
   );
   const sessions = res.rows;
 
-  const workdaysInM = workdaysInMonth(year, month);
+  // Effective ish kunlari: tizim boshlangan kundan bugunga qadar
+  const workdaysInM = workdaysEffective(year, month, firstDate);
   let presentDays = 0;
   let vacationDays = 0;
   let sickDays = 0;
@@ -264,16 +297,41 @@ async function computeMonthlyFromSessions(userId, year, month) {
   let regularSeconds = 0;
   let overtimeSeconds = 0;
 
+  const nowJs = new Date();
+
   for (const s of sessions) {
+    let sTotalSec   = Number(s.total_seconds)    || 0;
+    let sRegularSec = Number(s.regular_seconds)  || 0;
+    let sOvertimeSec= Number(s.overtime_seconds) || 0;
+
+    // Aktiv sessiya uchun real vaqtni hisoblash
+    if (s.status === 'active' && s.first_entry_time) {
+      const entryStr = `${s.work_date}T${String(s.first_entry_time).slice(0,8)}`;
+      const entryTs  = new Date(entryStr);
+      if (!isNaN(entryTs.getTime())) {
+        const liveTotal = Math.max(0, Math.floor((nowJs - entryTs) / 1000));
+        if (liveTotal > sTotalSec) {
+          // Standart ish kuni: 08:30–16:30 = 28800 soniya
+          const schedSec = 8 * 3600;
+          const nowH = nowJs.getHours();
+          const nowM = nowJs.getMinutes();
+          const afterWorkEnd = nowH > 16 || (nowH === 16 && nowM >= 30);
+          sTotalSec    = liveTotal;
+          sRegularSec  = Math.min(liveTotal, schedSec);
+          sOvertimeSec = afterWorkEnd ? Math.max(0, liveTotal - schedSec) : 0;
+        }
+      }
+    }
+
     if (s.status === 'vacation') vacationDays += 1;
     else if (s.status === 'sick') sickDays += 1;
     else if (s.status !== 'absent') presentDays += 1;
-    totalSeconds += Number(s.total_seconds) || 0;
-    regularSeconds += Number(s.regular_seconds) || 0;
-    overtimeSeconds += Number(s.overtime_seconds) || 0;
+    totalSeconds    += sTotalSec;
+    regularSeconds  += sRegularSec;
+    overtimeSeconds += sOvertimeSec;
   }
 
-  const absentDays = Math.max(0, workdaysInM - presentDays);
+  const absentDays = Math.max(0, workdaysInM - presentDays - vacationDays - sickDays);
   const expectedHours = workdaysInM * 8;
   const attendancePct =
     workdaysInM > 0 ? Math.round((presentDays / workdaysInM) * 10000) / 100 : 0;
@@ -334,46 +392,50 @@ async function getMonthlyReport(userId, year, month) {
 
   if (!current) {
     const c = summary;
-    await pool.query(
-      `INSERT INTO monthly_reports (
-         user_id, year, month,
-         total_work_days, present_days, absent_days, vacation_days, sick_days,
-         attendance_pct, total_hours, regular_hours, overtime_hours,
-         break_hours, expected_hours, most_used_building, building_stats
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-       ON CONFLICT (user_id, year, month) DO UPDATE SET
-         total_work_days = EXCLUDED.total_work_days,
-         present_days = EXCLUDED.present_days,
-         absent_days = EXCLUDED.absent_days,
-         vacation_days = EXCLUDED.vacation_days,
-         sick_days = EXCLUDED.sick_days,
-         attendance_pct = EXCLUDED.attendance_pct,
-         total_hours = EXCLUDED.total_hours,
-         regular_hours = EXCLUDED.regular_hours,
-         overtime_hours = EXCLUDED.overtime_hours,
-         expected_hours = EXCLUDED.expected_hours,
-         most_used_building = EXCLUDED.most_used_building,
-         building_stats = EXCLUDED.building_stats,
-         generated_at = NOW()`,
-      [
-        userId,
-        y,
-        m,
-        c.workdaysInMonth,
-        c.presentDays,
-        c.absentDays,
-        c.vacationDays,
-        c.sickDays,
-        c.attendancePct,
-        c.totalHours,
-        c.regularHours,
-        c.overtimeHours,
-        0,
-        c.expectedHours,
-        c.mostUsedBuilding,
-        c.buildingStats || {},
-      ]
-    );
+    try {
+      await pool.query(
+        `INSERT INTO monthly_reports (
+           user_id, year, month,
+           total_work_days, present_days, absent_days, vacation_days, sick_days,
+           attendance_pct, total_hours, regular_hours, overtime_hours,
+           break_hours, expected_hours, most_used_building, building_stats
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         ON CONFLICT (user_id, year, month) DO UPDATE SET
+           total_work_days = EXCLUDED.total_work_days,
+           present_days = EXCLUDED.present_days,
+           absent_days = EXCLUDED.absent_days,
+           vacation_days = EXCLUDED.vacation_days,
+           sick_days = EXCLUDED.sick_days,
+           attendance_pct = EXCLUDED.attendance_pct,
+           total_hours = EXCLUDED.total_hours,
+           regular_hours = EXCLUDED.regular_hours,
+           overtime_hours = EXCLUDED.overtime_hours,
+           expected_hours = EXCLUDED.expected_hours,
+           most_used_building = EXCLUDED.most_used_building,
+           building_stats = EXCLUDED.building_stats,
+           generated_at = NOW()`,
+        [
+          userId,
+          y,
+          m,
+          c.workdaysInMonth,
+          c.presentDays,
+          c.absentDays,
+          c.vacationDays,
+          c.sickDays,
+          c.attendancePct,
+          c.totalHours,
+          c.regularHours,
+          c.overtimeHours,
+          0,
+          c.expectedHours,
+          c.mostUsedBuilding,
+          c.buildingStats || {},
+        ]
+      );
+    } catch (insertErr) {
+      console.warn(`monthly_reports INSERT xatosi (user=${userId}, ${y}/${m}):`, insertErr.message);
+    }
   }
 
   return { year: y, month: m, sessions, summary };

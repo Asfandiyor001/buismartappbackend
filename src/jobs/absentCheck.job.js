@@ -12,7 +12,7 @@ async function markAbsentStaff() {
     `INSERT INTO work_sessions (user_id, work_date, status, is_finished)
      SELECT u.id, CURRENT_DATE, 'absent', true
      FROM users u
-     WHERE u.role = 'staff'
+     WHERE u.role IN ('staff', 'admin', 'prorektor')
        AND u.is_active = true
        AND NOT EXISTS (
          SELECT 1 FROM work_sessions ws
@@ -26,9 +26,13 @@ async function markAbsentStaff() {
 }
 
 function register() {
-  cron.schedule('0 10 * * 1-6', () => {
-    markAbsentStaff().catch((e) => console.error('[absentCheck.job]', e));
-  });
+  cron.schedule(
+    '0 10 * * 1-6',
+    () => {
+      markAbsentStaff().catch((e) => console.error('[absentCheck.job]', e));
+    },
+    { timezone: 'Asia/Tashkent' }
+  );
 }
 
 module.exports = { register, markAbsentStaff };

@@ -20,7 +20,7 @@ const login = async (phone, password) => {
 
   // 3. Qo'shimcha ma'lumotlarni tortib olish (agar xodim bo'lsa)
   let extraInfo = {};
-  if (user.role === 'staff' || user.role === 'admin') {
+  if (user.role === 'staff' || user.role === 'admin' || user.role === 'prorektor') {
     const staffResult = await pool.query('SELECT department, position FROM staff_profiles WHERE user_id = $1', [user.id]);
     if (staffResult.rows.length > 0) {
       extraInfo = staffResult.rows[0];

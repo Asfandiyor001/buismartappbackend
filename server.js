@@ -1,3 +1,12 @@
+process.env.TZ = process.env.TZ || 'Asia/Tashkent';
+
+require('@dotenvx/dotenvx').config();
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET .env da aniqlanmagan!');
+  process.exit(1);
+}
+
 const app = require('./src/app');
 const config = require('./src/config/env');
 const pool = require('./src/config/database');
@@ -21,3 +30,12 @@ pool.connect()
     console.error('❌ Bazaga ulanishda xatolik yuz berdi:', err.message);
     process.exit(1); // Xato bo'lsa serverni to'xtatish
   });
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught Exception:', err);
+  process.exit(1);
+});

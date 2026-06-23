@@ -1,5 +1,9 @@
 const pool = require('../../config/database');
 const { nowStr } = require('../../utils/time');
+const { workedSecondsSql, REGULAR_CAP: WT_REGULAR_CAP } = require('../../utils/workTime');
+
+/** Ish kuni qat'iy oxiri — 18:00 (daqiqada). Bundan keyin yangi log/sessiya ochilmaydi. */
+const EOD_MINUTES = 18 * 60; // 1080
 
 const safeExitTime = (entryTime, proposedExitTime) => {
   const entry = new Date(entryTime);
@@ -7,9 +11,14 @@ const safeExitTime = (entryTime, proposedExitTime) => {
   return exit >= entry ? exit : entry;
 };
 
-const AUTO_CHECKOUT_MINUTES = 15;
+const AUTO_CHECKOUT_MINUTES = 60;
 /** No ping for this long → auto-finish session at last_ping_at (ghost-session guard). */
-const INACTIVE_SESSION_MINUTES = 30;
+const INACTIVE_SESSION_MINUTES = 60;
+/** GPS coordinates can drift by this much even indoors — add buffer before outside countdown. */
+const GPS_DRIFT_TOLERANCE_M = 50;
+/** Extra radius (m) tolerated for the very first check-in of the day.
+ *  Accounts for GPS accuracy variance (phones can report ±50 m indoors). */
+const CHECKIN_GPS_BUFFER_M = 50;
 
 const WORK_END_HOUR = 16;
 const WORK_END_MINUTE = 30;
@@ -58,6 +67,18 @@ async function notifyDavomatCheckOut(dbOrClient, userId, totalSeconds) {
   );
 }
 
+async function notifyBinoAlmashtirish(dbOrClient, userId, newBuildingName) {
+  await dbOrClient.query(
+    `INSERT INTO notifications (user_id, type, title, body)
+     VALUES ($1, 'davomat', $2, $3)`,
+    [
+      userId,
+      'Bino almashtirildi',
+      `Siz ${newBuildingName} ga o'tdingiz`,
+    ]
+  );
+}
+
 async function finalizePing(pingId, result) {
   if (!pingId || !result || !result.action) return;
   try {
@@ -70,18 +91,26 @@ async function finalizePing(pingId, result) {
   }
 }
 
-/** Nearest active building and distance in meters (Haversine). */
+/** Nearest active building and its distance in meters (Haversine).
+ *  Returns the CLOSEST active building regardless of radius — callers compute
+ *  `isInside = dist_m <= radius_m` themselves and drive outside-detection from it.
+ *  (Previously this filtered `WHERE dist_m <= radius_m`, so any ping outside the
+ *   radius returned null → `no_buildings`, leaving the entire outside-countdown /
+ *   auto-checkout branch unreachable. F1 fix.)
+ *  Returns null only when there are NO active buildings at all. */
 async function nearestBuilding(lat, lon) {
   const buildings = await pool.query(
     `
-    SELECT *,
-      (2 * 6371000 * asin(least(1, sqrt(
-        power(sin(radians(($1::float8 - latitude::float8) / 2)), 2) +
-        cos(radians($1::float8)) * cos(radians(latitude::float8)) *
-        power(sin(radians(($2::float8 - longitude::float8) / 2)), 2)
-      )))) AS dist_m
-    FROM buildings
-    WHERE is_active = true
+    SELECT * FROM (
+      SELECT *,
+        (2 * 6371000 * asin(least(1, sqrt(
+          power(sin(radians(($1::float8 - latitude::float8) / 2)), 2) +
+          cos(radians($1::float8)) * cos(radians(latitude::float8)) *
+          power(sin(radians(($2::float8 - longitude::float8) / 2)), 2)
+        )))) AS dist_m
+      FROM buildings
+      WHERE is_active = true
+    ) sub
     ORDER BY dist_m ASC
     LIMIT 1
   `,
@@ -92,35 +121,36 @@ async function nearestBuilding(lat, lon) {
 
 async function recalcSession(sessionId, client) {
   const dbOrClient = client || pool;
+
+  // Kanonik formula: GREATEST(loglar yig'indisi, kirish→hozir/chiqish oraliq − abet), 9s cap.
+  // GPS uzilgan bo'shliqlarni oraliq vaqt to'ldiradi (8 soat ishlab 54 daqiqa ko'rsatmaydi).
+  const workedExpr = workedSecondsSql('ws');
+  const isOT = isPastWorkEnd(new Date());
+
   const { rows } = await dbOrClient.query(
     `
-    SELECT COALESCE(SUM(duration_seconds), 0)::bigint AS total
-    FROM work_logs
-    WHERE session_id = $1 AND duration_seconds IS NOT NULL
+    UPDATE work_sessions ws SET
+      total_seconds    = calc.worked,
+      regular_seconds  = LEAST(calc.worked, ${WT_REGULAR_CAP}),
+      overtime_seconds = ${isOT ? `GREATEST(0, calc.worked - ${WT_REGULAR_CAP})` : '0'},
+      updated_at       = NOW()
+    FROM (
+      SELECT ws.id, (${workedExpr})::int AS worked
+      FROM work_sessions ws
+      WHERE ws.id = $1
+    ) calc
+    WHERE ws.id = calc.id
+    RETURNING ws.total_seconds AS total, ws.regular_seconds AS regular, ws.overtime_seconds AS overtime
   `,
     [sessionId]
   );
 
-  const total = parseInt(rows[0].total, 10);
-  const regular = Math.min(total, REGULAR_CAP);
-
-  const now = new Date();
-  const isOT = isPastWorkEnd(now);
-  const overtime = isOT ? Math.max(0, total - REGULAR_CAP) : 0;
-
-  await dbOrClient.query(
-    `
-    UPDATE work_sessions SET
-      total_seconds    = $1,
-      regular_seconds  = $2,
-      overtime_seconds = $3,
-      updated_at       = NOW()
-    WHERE id = $4
-  `,
-    [total, regular, overtime, sessionId]
-  );
-
-  return { total, regular, overtime };
+  const r = rows[0] || {};
+  return {
+    total: Number(r.total) || 0,
+    regular: Number(r.regular) || 0,
+    overtime: Number(r.overtime) || 0,
+  };
 }
 
 async function getTodaySession(userId, client) {
@@ -152,12 +182,32 @@ async function closeActiveLog(logId, exitTime, reason, client) {
   if (!entryTime) {
     throw new Error(`closeActiveLog: work_log ${logId} not found`);
   }
-  const safeExit = safeExitTime(entryTime, exitTime);
+  // Cap exit_time to entry + 9 hours (8h regular + 1h max overtime)
+  // VA o'sha kunning 18:00 (EOD) chegarasi — qaysi biri kichik bo'lsa.
+  // Bu 18:00 dan keyingi soxta log davomiyligini (masalan 20:27) oldini oladi.
+  const entryDate = new Date(entryTime);
+  const entryMs = entryDate.getTime();
+  const eod = new Date(entryDate);
+  eod.setHours(18, 0, 0, 0); // o'sha kun 18:00
+  const maxExitMs = Math.min(entryMs + 9 * 60 * 60 * 1000, eod.getTime());
+  const proposedMs = new Date(exitTime).getTime();
+  const cappedExitMs = Math.min(proposedMs, maxExitMs);
+  const safeExit = safeExitTime(entryTime, new Date(cappedExitMs));
   await dbOrClient.query(
     `
     UPDATE work_logs SET
-      exit_time        = $1::timestamptz,
-      duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - entry_time::timestamptz)))::INT,
+      exit_time = GREATEST(
+        entry_time + INTERVAL '1 millisecond',
+        $1::timestamptz
+      ),
+      duration_seconds = GREATEST(0,
+        EXTRACT(EPOCH FROM (
+          GREATEST(
+            entry_time + INTERVAL '1 millisecond',
+            $1::timestamptz
+          ) - entry_time
+        ))::INT
+      ),
       is_active        = false,
       checkout_reason  = $2
     WHERE id = $3
@@ -198,7 +248,7 @@ async function finalizeInactiveSessions() {
 
       const { rows: locked } = await client.query(
         `
-        SELECT id, last_ping_at, user_id
+        SELECT id, last_ping_at, user_id, (work_date = CURRENT_DATE) AS is_today
         FROM work_sessions
         WHERE id = $1
           AND status = 'active'
@@ -214,6 +264,53 @@ async function finalizeInactiveSessions() {
       if (!sess) {
         await client.query('COMMIT');
         continue;
+      }
+
+      // BUGUNGI sessiyani bu yerda YOPMAYMIZ. Ping kelmasligi xodim ketganini
+      // bildirmaydi — ko'pincha telefon harakatsiz (stol oldida) yoki ilova
+      // fonda, GPS jim. Bu yerda yopish soxta "Ish tugatdi" + keyingi pingda
+      // sessiya fragmentatsiyasiga (har gal yangi work_log) sabab bo'lardi.
+      // Sessiya ochiq qoladi (UI da ping eskirsa "Aloqa yo'q" ko'rinadi).
+      // Bugungi kun oxirini FAQAT 18:00 autoClose job va binodan chiqish
+      // (outside-detection auto_checkout) boshqaradi. Bu funksiya esa faqat
+      // o'tgan kunlarning yopilmay qolgan "ghost" sessiyalarini tozalaydi
+      // (masalan server downtime'dan keyin).
+      // Ish vaqtida (16:30 gacha) bugungi sessiyani staleness sababli YOPMAYMIZ —
+      // ping yo'qligi ketganini bildirmaydi (telefon stol oldida / ilova fonda).
+      // 16:30 dan KEYIN esa ish kuni tugadi — stale bugungi sessiyani ham yopamiz.
+      if (sess.is_today) {
+        const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+        if (nowMins < 990) { // 16:30 = 990 daqiqa
+          await client.query('COMMIT');
+          continue;
+        }
+        // 16:30 dan keyin — pastdagi yopish mantig'i bilan davom etamiz
+      }
+
+      // Grace period: if worker had an inside ping in the last 90 minutes,
+      // they may still be in the building with lost connectivity — skip auto-finalize.
+      const { rows: lastInsideRows } = await client.query(
+        `SELECT created_at FROM gps_pings
+         WHERE user_id = $1
+           AND is_inside = true
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [sess.user_id]
+      );
+      if (lastInsideRows.length > 0) {
+        const minutesSinceLastInside =
+          (Date.now() - new Date(lastInsideRows[0].created_at).getTime()) / 60000;
+        if (minutesSinceLastInside < 90) {
+          await client.query(
+            `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
+            [sess.id]
+          );
+          await client.query('COMMIT');
+          console.log(
+            `[finalizeInactiveSessions] user ${sess.user_id} — internet_outage_grace (last inside ${Math.round(minutesSinceLastInside)} min ago)`
+          );
+          continue;
+        }
       }
 
       let exitAt = sess.last_ping_at;
@@ -279,36 +376,66 @@ async function finalizeInactiveSessions() {
  * Same-day return after gps_lost (or any path that set done/finished): reopen session
  * so admins see the worker as active again when a new work_log is opened.
  */
-async function resurrectSessionIfClosed(sessionId, client) {
+async function resurrectSessionIfClosed(sessionId, client, opts = {}) {
   const dbOrClient = client || pool;
-  await dbOrClient.query(
+
+  // Real-time (opts.realtime) holatda 18:00 dan keyin yopilgan sessiyani
+  // QAYTA OCHMAYMIZ — ish kuni tugagan, kechki ping yangi ish vaqti yaratmasin.
+  // Offline-sync (processPingAt) tarixiy vaqt bilan ishlaydi → bu chek o'tkazib yuboriladi.
+  if (opts.realtime) {
+    const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+    if (nowMins >= EOD_MINUTES) return false;
+  }
+
+  // opts.entryTime: "HH:MM" formatida kirish vaqti — first_entry_time NULL bo'lsa shu vaqt o'rnatiladi.
+  // absentCheck.job 10:00da sessiya first_entry_time=NULL bilan yaratadi; xodim keyin kelganda
+  // bu COALESCE first_entry_time'ni to'ldiradi.
+  const entryTimeVal = opts.entryTime || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+
+  const { rowCount } = await dbOrClient.query(
     `
     UPDATE work_sessions SET
-      status       = 'active',
-      is_finished  = false,
-      finished_at  = NULL,
-      updated_at   = NOW()
+      status           = 'active',
+      is_finished      = false,
+      finished_at      = NULL,
+      first_entry_time = COALESCE(first_entry_time, $2::TIME),
+      updated_at       = NOW()
     WHERE id = $1
       AND (status = 'done' OR is_finished = true)
   `,
-    [sessionId]
+    [sessionId, entryTimeVal]
   );
+  return rowCount > 0;
 }
 
 async function openNewLog(sessionId, userId, buildingId, lat, lon, client) {
   const dbOrClient = client || pool;
-  await resurrectSessionIfClosed(sessionId, client);
+  const nowStr = `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+  await resurrectSessionIfClosed(sessionId, client, { realtime: true, entryTime: nowStr });
+  // ON CONFLICT — partial unique index (idx_work_logs_one_active_per_session)
+  // bir sessiyada bir vaqtning o'zida faqat BITTA aktiv log bo'lishini kafolatlaydi.
+  // Konkurent ping (race condition) ikkinchi logni yaratolmaydi → duplicate yo'q.
   const { rows } = await dbOrClient.query(
     `
     INSERT INTO work_logs
       (session_id, user_id, building_id, entry_time,
        entry_lat, entry_lon, is_active, checkout_reason)
     VALUES ($1, $2, $3, NOW(), $4, $5, true, 'manual')
+    ON CONFLICT (session_id) WHERE (is_active = true)
+    DO NOTHING
     RETURNING *
   `,
     [sessionId, userId, buildingId, lat, lon]
   );
-  return rows[0];
+  if (rows[0]) return rows[0];
+  // Konflikt bo'ldi — boshqa ping allaqachon aktiv log ochgan, mavjudini qaytaramiz
+  const { rows: existing } = await dbOrClient.query(
+    `SELECT * FROM work_logs
+      WHERE session_id = $1 AND is_active = true
+      ORDER BY id DESC LIMIT 1`,
+    [sessionId]
+  );
+  return existing[0] || null;
 }
 
 async function processPing(userId, lat, lon, accuracy) {
@@ -325,8 +452,18 @@ async function processPing(userId, lat, lon, accuracy) {
   if (lastPingResult.rows.length > 0) {
     const lastPing = new Date(lastPingResult.rows[0].created_at);
     const secondsSinceLastPing = (Date.now() - lastPing.getTime()) / 1000;
-    if (secondsSinceLastPing < 25) {
-      return { action: 'too_frequent', secondsSince: Math.floor(secondsSinceLastPing) };
+    if (secondsSinceLastPing < 15) {
+      // Active session yo'q bo'lsa debounce'ni o'tkazib yuboramiz —
+      // kunning birinchi checkin'i hech qachon bloklanmasin
+      const { rows: activeSess } = await pool.query(
+        `SELECT id FROM work_sessions
+         WHERE user_id = $1 AND work_date = CURRENT_DATE AND is_finished = false
+         LIMIT 1`,
+        [userId]
+      );
+      if (activeSess.length > 0) {
+        return { action: 'too_frequent', secondsSince: Math.floor(secondsSinceLastPing) };
+      }
     }
   }
 
@@ -366,10 +503,23 @@ async function processPing(userId, lat, lon, accuracy) {
     // Work-time guards — computed once per ping cycle
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
-    const WORK_START_MINS = 480; // 08:00
-    const WORK_END_MINS   = 990; // 16:30
-    const ABET_START_MINS = 780; // 13:00
-    const ABET_END_MINS   = 840; // 14:00
+
+    // WORK_START_MINS — DB'dagi staff_profiles.work_start dan o'qiladi (masalan '08:30').
+    // Profil topilmasa default 08:30 ishlatiladi.
+    // EARLY_CHECKIN_BUFFER: ish boshlanishidan 60 daqiqa oldin checkin ruxsat (07:30 dan)
+    const staffRes = await pool.query(
+      `SELECT sp.work_start FROM staff_profiles sp WHERE sp.user_id = $1`,
+      [userId]
+    );
+    const workStartStr = staffRes.rows[0]?.work_start || '08:30';
+    const [wsh, wsm] = workStartStr.split(':').map(Number);
+    const WORK_START_MINS       = wsh * 60 + wsm;
+    const EARLY_CHECKIN_BUFFER  = 60; // daqiqa
+    const EARLY_CHECKIN_START   = WORK_START_MINS - EARLY_CHECKIN_BUFFER; // 07:30
+
+    const WORK_END_MINS   = 990;  // 16:30 — standart ish tugash, auto-checkout chegarasi
+    const ABET_START_MINS = 780;  // 13:00 — abet boshlanishi
+    const ABET_END_MINS   = 840;  // 14:00 — abet tugashi
 
     const dayOfWeek = now.getDay();
     // 0 = Yakshanba (dam olish); 1–6 = Dushanba–Shanba (ish kunlari)
@@ -382,12 +532,34 @@ async function processPing(userId, lat, lon, accuracy) {
 
     const session = await getTodaySession(userId, client);
 
+    console.log(`[processPing] user=${userId} dist=${Math.round(distM)}m radius=${building.radius_m}m isInside=${isInside} nowMins=${nowMins} session=${session?.id ?? 'none'}`);
+
     if (isInside) {
-      if (!session) {
-        // Do not auto-checkin before work starts (08:00)
-        if (nowMins < WORK_START_MINS) {
+      // 18:00 (EOD) dan keyin: ish kuni tugagan — yangi sessiya/log OCHMAYMIZ va
+      // yopilgan sessiyani qayta tiklamaymiz. Faqat last_ping_at yangilanadi.
+      // Bu kechki "ghost" loglarni (masalan 18:08→20:27) butunlay to'xtatadi.
+      if (nowMins >= EOD_MINUTES) {
+        if (session && !session.is_finished) {
+          await client.query(
+            `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
+            [session.id]
+          );
+          await client.query('COMMIT');
+        } else {
           await client.query('ROLLBACK');
-          const out = { action: 'before_work_time', message: 'Ish vaqti boshlanmagan (08:00 dan)' };
+        }
+        const out = { action: 'work_day_ended', message: 'Ish kuni tugagan (18:00)' };
+        await finalizePing(pingId, out);
+        return out;
+      }
+
+      if (!session) {
+        // Do not auto-checkin earlier than 60 min before work start (default: 07:30)
+        if (nowMins < EARLY_CHECKIN_START) {
+          await client.query('ROLLBACK');
+          const earlyH = String(Math.floor(EARLY_CHECKIN_START / 60)).padStart(2, '0');
+          const earlyM = String(EARLY_CHECKIN_START % 60).padStart(2, '0');
+          const out = { action: 'before_work_time', message: `Juda erta (${earlyH}:${earlyM} dan checkin mumkin)` };
           await finalizePing(pingId, out);
           return out;
         }
@@ -411,6 +583,8 @@ async function processPing(userId, lat, lon, accuracy) {
             (user_id, work_date, first_entry_time,
              status, last_ping_at, buildings_visited)
           VALUES ($1, CURRENT_DATE, $2::TIME, 'active', NOW(), 1)
+          ON CONFLICT (user_id, work_date) DO UPDATE
+            SET last_ping_at = NOW()
           RETURNING *
         `,
           [userId, timeStr]
@@ -419,10 +593,20 @@ async function processPing(userId, lat, lon, accuracy) {
         await openNewLog(newSession.id, userId, building.id, lat, lon, client);
         await notifyDavomatCheckIn(client, userId, now);
         await client.query('COMMIT');
+        // Session ma'lumotlarini response'ga qo'shamiz — mobile qo'shimcha fetch qilmasin
+        const { rows: [freshSession] } = await pool.query(
+          `SELECT id, user_id, work_date, status, is_finished,
+                  first_entry_time, total_seconds, last_ping_at
+           FROM work_sessions
+           WHERE user_id = $1 AND work_date = CURRENT_DATE
+           ORDER BY id DESC LIMIT 1`,
+          [userId]
+        );
         const out = {
           action: 'auto_checkin',
           buildingId: building.id,
           buildingName: building.name,
+          session: freshSession || null,
         };
         await finalizePing(pingId, out);
         return out;
@@ -446,8 +630,8 @@ async function processPing(userId, lat, lon, accuracy) {
 
       if (session.active_log_id && session.active_building_id !== building.id) {
         await closeActiveLog(session.active_log_id, new Date(), 'auto_gps', client);
-        const totalsSwitch = await recalcSession(session.id, client);
-        await notifyDavomatCheckOut(client, userId, totalsSwitch.total);
+        await recalcSession(session.id, client);
+        await notifyBinoAlmashtirish(client, userId, building.name);
         await openNewLog(session.id, userId, building.id, lat, lon, client);
         await notifyDavomatCheckIn(client, userId);
         await client.query(
@@ -473,25 +657,109 @@ async function processPing(userId, lat, lon, accuracy) {
       }
 
       if (!session.active_log_id) {
+        // FIX 3: Log re-checkin reason when returning after auto-checkout
+        const { rows: recentCheckouts } = await client.query(
+          `SELECT checkout_reason, exit_time FROM work_logs
+           WHERE session_id = $1
+           ORDER BY exit_time DESC NULLS LAST
+           LIMIT 1`,
+          [session.id]
+        );
+        if (recentCheckouts.length > 0) {
+          const rc = recentCheckouts[0];
+          if (['auto_gps', 'gps_lost', 'system_timeout'].includes(rc.checkout_reason)) {
+            console.log(
+              `[processPing] user ${userId} — auto re-checkin after '${rc.checkout_reason}' checkout at ${rc.exit_time}`
+            );
+          }
+        }
         await openNewLog(session.id, userId, building.id, lat, lon, client);
         await notifyDavomatCheckIn(client, userId);
         await client.query(
           `
           UPDATE work_sessions SET
-            last_ping_at  = NOW(),
-            outside_since = NULL,
-            status          = 'active',
-            buildings_visited = buildings_visited + 1
+            last_ping_at     = NOW(),
+            outside_since    = NULL,
+            status           = 'active',
+            buildings_visited = buildings_visited + 1,
+            first_entry_time = COALESCE(first_entry_time, CURRENT_TIME)
           WHERE id = $1
         `,
           [session.id]
         );
         await client.query('COMMIT');
-        const out = { action: 'auto_recheckin', buildingId: building.id };
+        const { rows: [freshSessionRe] } = await pool.query(
+          `SELECT id, user_id, work_date, status, is_finished,
+                  first_entry_time, total_seconds, last_ping_at
+           FROM work_sessions
+           WHERE user_id = $1 AND work_date = CURRENT_DATE
+           ORDER BY id DESC LIMIT 1`,
+          [userId]
+        );
+        const out = {
+          action: 'auto_recheckin',
+          buildingId: building.id,
+          session: freshSessionRe || null,
+        };
         await finalizePing(pingId, out);
         return out;
       }
     } else {
+      // First-checkin GPS buffer: employee has no session yet and is within radius+20 m.
+      // GPS accuracy indoors can be ±20 m; without this buffer the first ping of the day
+      // returns no_session and the timer never starts even though the person is at work.
+      const isInsideBuffered = distM <= Number(building.radius_m) + CHECKIN_GPS_BUFFER_M;
+      if (!session && isInsideBuffered && nowMins >= EARLY_CHECKIN_START && nowMins <= WORK_END_MINS) {
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const { rows: [newSession] } = await client.query(
+          `INSERT INTO work_sessions
+             (user_id, work_date, first_entry_time, status, last_ping_at, buildings_visited)
+           VALUES ($1, CURRENT_DATE, $2::TIME, 'active', NOW(), 1)
+           ON CONFLICT (user_id, work_date) DO UPDATE
+             SET last_ping_at = NOW()
+           RETURNING *`,
+          [userId, timeStr]
+        );
+        await openNewLog(newSession.id, userId, building.id, lat, lon, client);
+        await notifyDavomatCheckIn(client, userId, now);
+        await client.query('COMMIT');
+        const { rows: [freshSession] } = await pool.query(
+          `SELECT id, user_id, work_date, status, is_finished,
+                  first_entry_time, total_seconds, last_ping_at
+           FROM work_sessions
+           WHERE user_id = $1 AND work_date = CURRENT_DATE
+           ORDER BY id DESC LIMIT 1`,
+          [userId]
+        );
+        const out = {
+          action: 'auto_checkin',
+          buildingId: building.id,
+          buildingName: building.name,
+          distanceM: distM,
+          buffered: true,
+          session: freshSession || null,
+        };
+        await finalizePing(pingId, out);
+        console.log(`[processPing] user ${userId} — auto_checkin (GPS buffer) dist=${Math.round(distM)}m radius=${building.radius_m}m`);
+        return out;
+      }
+
+      // GPS drift tolerance: treat as still inside if within radius + 50 m buffer.
+      // Prevents false outside triggers from minor GPS jitter indoors.
+      if (session && !session.is_finished && session.active_log_id) {
+        const driftLimit = Number(building.radius_m) + GPS_DRIFT_TOLERANCE_M;
+        if (distM <= driftLimit) {
+          await client.query(
+            `UPDATE work_sessions SET last_ping_at = NOW(), outside_since = NULL WHERE id = $1`,
+            [session.id]
+          );
+          await client.query('COMMIT');
+          const out = { action: 'inside_drift', distanceM: distM, driftLimit };
+          await finalizePing(pingId, out);
+          return out;
+        }
+      }
+
       if (!session || session.is_finished) {
         await client.query('ROLLBACK');
         const out = { action: 'no_session' };
@@ -514,7 +782,7 @@ async function processPing(userId, lat, lon, accuracy) {
       }
 
       // After 16:30: close the active log immediately at exactly 16:30 and finish the session.
-      // Do not wait for the 15-minute outside countdown once the work day is over.
+      // Do not wait for the outside countdown (AUTO_CHECKOUT_MINUTES) once the work day is over.
       if (nowMins > WORK_END_MINS) {
         const exitTime = new Date();
         exitTime.setHours(WORK_END_HOUR, WORK_END_MINUTE, 0, 0);
@@ -534,12 +802,48 @@ async function processPing(userId, lat, lon, accuracy) {
           [session.id]
         );
         await client.query('COMMIT');
+
+        try {
+          const { sendPushToUser } = require('../../utils/pushNotification');
+          await sendPushToUser(
+            userId,
+            '🏢 Ish kuni yakunlandi',
+            'Ish vaqti tugadi. Chiqish avtomatik qayd etildi.',
+            pool
+          );
+        } catch (_) { /* push xatosi checkout'ni buzmasin */ }
+
         const out = { action: 'auto_checkout_end_of_day', exitTime };
         await finalizePing(pingId, out);
         return out;
       }
 
       if (!session.outside_since) {
+        // Require at least one previous outside ping in the last 5 minutes before
+        // starting the countdown — single-ping GPS jitter should not trigger checkout.
+        const { rows: prevOutside } = await client.query(
+          `
+          SELECT id FROM gps_pings
+          WHERE user_id = $1
+            AND is_inside = false
+            AND created_at >= NOW() - INTERVAL '5 minutes'
+            AND id < $2
+          LIMIT 1
+        `,
+          [userId, pingId]
+        );
+
+        if (prevOutside.length === 0) {
+          await client.query(
+            `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
+            [session.id]
+          );
+          await client.query('COMMIT');
+          const out = { action: 'outside_first_ping', distanceM: distM };
+          await finalizePing(pingId, out);
+          return out;
+        }
+
         await client.query(
           `
           UPDATE work_sessions SET
@@ -562,8 +866,10 @@ async function processPing(userId, lat, lon, accuracy) {
       // Checked BEFORE the 15-minute countdown so staff leaving at 12:50+ are not penalised.
       const isAbetTime = nowMins >= ABET_START_MINS && nowMins < ABET_END_MINS;
       if (isAbetTime) {
+        // Abet paytida outside_since ni NULL qil — 14:00 dan keyin
+        // xodim qaytib kelganda countdown noldan boshlansin, erta chiqish bo'lmasin
         await client.query(
-          `UPDATE work_sessions SET last_ping_at = NOW() WHERE id = $1`,
+          `UPDATE work_sessions SET last_ping_at = NOW(), outside_since = NULL WHERE id = $1`,
           [session.id]
         );
         await client.query('COMMIT');
@@ -589,6 +895,45 @@ async function processPing(userId, lat, lon, accuracy) {
         return out;
       }
 
+      // FIX 2: Grace period — if last inside ping was < 90 min ago, worker likely lost
+      // internet while still inside the building; reset countdown and skip checkout.
+      const { rows: lastInsidePingRows } = await client.query(
+        `SELECT created_at FROM gps_pings
+         WHERE user_id = $1
+           AND is_inside = true
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+      if (lastInsidePingRows.length > 0) {
+        const minutesSinceLastInside =
+          (Date.now() - new Date(lastInsidePingRows[0].created_at).getTime()) / 60000;
+        if (minutesSinceLastInside < 90) {
+          await client.query(
+            `UPDATE work_sessions SET last_ping_at = NOW(), outside_since = NULL WHERE id = $1`,
+            [session.id]
+          );
+          await client.query('COMMIT');
+          const out = {
+            action: 'internet_outage_grace',
+            message: "So'nggi marta binoda edi, checkout kechiktirildi",
+            minutesSinceLastInside: Math.round(minutesSinceLastInside),
+          };
+          await finalizePing(pingId, out);
+          return out;
+        }
+      }
+
+      // FIX 5: Notify user that auto-checkout is about to happen
+      try {
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, body)
+           VALUES ($1, 'ogohlantirish', 'GPS aloqa uzildi',
+             'Tizim siz binoni tark etgandek qabul qildi. Agar binoda bo''lsangiz, ilovani oching.')`,
+          [userId]
+        );
+      } catch (_) { /* notification failure must not block checkout */ }
+
       await closeActiveLog(session.active_log_id, outsideSince, 'auto_gps', client);
       const totalsCheckout = await recalcSession(session.id, client);
       await notifyDavomatCheckOut(client, userId, totalsCheckout.total);
@@ -610,6 +955,18 @@ async function processPing(userId, lat, lon, accuracy) {
       );
 
       await client.query('COMMIT');
+
+      // Push notification (commit'dan keyin — txn ichida tashqi HTTP yo'q)
+      try {
+        const { sendPushToUser } = require('../../utils/pushNotification');
+        await sendPushToUser(
+          userId,
+          '🏢 Avtomatik chiqish',
+          `Siz binodan chiqib ketdingiz. Chiqish vaqti: ${exitTimeStr}`,
+          pool
+        );
+      } catch (_) { /* push xatosi checkout'ni buzmasin */ }
+
       const out = {
         action: 'auto_checkout',
         minutesOutside: Math.floor(minutesOutside),
@@ -702,8 +1059,8 @@ async function processPingAt(userId, lat, lon, accuracy, timestamp) {
 
       if (session.active_log_id && session.active_building_id !== building.id) {
         await closeActiveLog(session.active_log_id, timestamp, 'auto_gps', client);
-        const totalsSwitchAt = await recalcSession(session.id, client);
-        await notifyDavomatCheckOut(client, userId, totalsSwitchAt.total);
+        await recalcSession(session.id, client);
+        await notifyBinoAlmashtirish(client, userId, building.name);
         await openNewLogAt(session.id, userId, building.id, lat, lon, timestamp, client);
         await notifyDavomatCheckIn(client, userId, timestamp);
         await client.query(
@@ -794,6 +1151,15 @@ async function autoCheckoutAt(userId, timestamp) {
     const exitTimeStr = `${String(timestamp.getHours()).padStart(2, '0')}:${String(timestamp.getMinutes()).padStart(2, '0')}`;
 
     if (session.active_log_id) {
+      // Guard: log < 60s old → GPS power-on glitch right after checkin, not real departure.
+      // Prevents 0-duration logs when gps_off event arrives same second as checkin.
+      const logAgeSec = (new Date(timestamp) - new Date(session.active_entry_time)) / 1000;
+      if (logAgeSec < 60) {
+        await client.query('ROLLBACK');
+        console.log(`[autoCheckoutAt] user ${userId} — gps_lost ignored, log too fresh (${Math.round(logAgeSec)}s)`);
+        return { action: 'gps_lost_ignored_too_soon', logAgeSec: Math.round(logAgeSec) };
+      }
+
       // Case A: log is still open — close it at the historical timestamp
       await closeActiveLog(session.active_log_id, timestamp, 'gps_lost', client);
 
@@ -804,9 +1170,11 @@ async function autoCheckoutAt(userId, timestamp) {
         [session.active_log_id]
       );
 
-      const totalsGps = await recalcSession(session.id, client);
-      await notifyDavomatCheckOut(client, userId, totalsGps.total);
-
+      // MUHIM: sessiyani avval YAKUNLASH (is_finished + last_exit_time), keyin
+      // recalcSession. Aks holda kanonik formula endTs = LEAST(NOW, 18:00) ni
+      // ishlatadi (sessiya hali ochiq deb), va erta ketganda (masalan 16:40)
+      // ish vaqti 18:00 gacha shishib ketadi (8s40d o'rniga 9soat cap).
+      // Yakunlangandan keyin recalc endTs = last_exit_time (16:40) ni ishlatadi.
       await client.query(
         `
         UPDATE work_sessions SET
@@ -821,6 +1189,9 @@ async function autoCheckoutAt(userId, timestamp) {
       `,
         [timestamp, exitTimeStr, session.id]
       );
+
+      const totalsGps = await recalcSession(session.id, client);
+      await notifyDavomatCheckOut(client, userId, totalsGps.total);
 
       await client.query('COMMIT');
       return { action: 'gps_lost_checkout', logId: session.active_log_id, exitTime: timestamp };
@@ -909,18 +1280,29 @@ async function getTodaySessionAt(userId, timestamp, client) {
 /** openNewLogAt — like openNewLog but with an explicit entry_time instead of NOW() */
 async function openNewLogAt(sessionId, userId, buildingId, lat, lon, entryTime, client) {
   const dbOrClient = client || pool;
-  await resurrectSessionIfClosed(sessionId, client);
+  // Offline-sync (tarixiy) — realtime 18:00 cheki qo'llanmaydi
+  const entryTimeStr = `${String(entryTime.getHours()).padStart(2,'0')}:${String(entryTime.getMinutes()).padStart(2,'0')}`;
+  await resurrectSessionIfClosed(sessionId, client, { entryTime: entryTimeStr });
   const { rows } = await dbOrClient.query(
     `
     INSERT INTO work_logs
       (session_id, user_id, building_id, entry_time,
        entry_lat, entry_lon, is_active, checkout_reason)
     VALUES ($1, $2, $3, $4, $5, $6, true, 'manual')
+    ON CONFLICT (session_id) WHERE (is_active = true)
+    DO NOTHING
     RETURNING *
   `,
     [sessionId, userId, buildingId, entryTime, lat, lon]
   );
-  return rows[0];
+  if (rows[0]) return rows[0];
+  const { rows: existing } = await dbOrClient.query(
+    `SELECT * FROM work_logs
+      WHERE session_id = $1 AND is_active = true
+      ORDER BY id DESC LIMIT 1`,
+    [sessionId]
+  );
+  return existing[0] || null;
 }
 
 module.exports = {
@@ -929,4 +1311,5 @@ module.exports = {
   processPingAt,
   autoCheckoutAt,
   finalizeInactiveSessions,
+  nearestBuilding,
 };

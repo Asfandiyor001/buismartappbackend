@@ -15,7 +15,7 @@ const loginLimiter = rateLimit({
 
 // Ochiq yo'laklar (Token kerak emas)
 router.post('/login', loginLimiter, validate(loginSchema), authController.login);
-router.post('/biometric', validate(biometricSchema), authController.biometricLogin);
+router.post('/biometric', loginLimiter, validate(biometricSchema), authController.biometricLogin);
 
 // Yopiq yo'laklar (Token va authenticate qorovuli shart)
 router.get('/me', authenticate, authController.me);

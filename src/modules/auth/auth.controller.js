@@ -1,9 +1,6 @@
-// src/modules/auth/auth.controller.js
 const authService = require('./auth.service');
 const { success, error } = require('../../utils/response');
-
-// Vaqtincha xotirada qora ro'yxat (Logout qilingan tokenlar uchun)
-const tokenBlacklist = new Set();
+const { addToken } = require('../../utils/tokenBlacklist');
 
 const login = async (req, res) => {
   try {
@@ -28,9 +25,9 @@ const biometricLogin = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      tokenBlacklist.add(token); // Tokenni ishlatib bo'lmaydigan qilib qora ro'yxatga qo'shamiz
+      addToken(token);
     }
     return success(res, null, 'Tizimdan muvaffaqiyatli chiqdingiz');
   } catch (err) {
@@ -41,8 +38,7 @@ const logout = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { oldPass, newPass } = req.body;
-    const userId = req.user.id; // Buni auth middleware bizga ulab bergan
-    
+    const userId = req.user.id;
     await authService.changePassword(userId, oldPass, newPass);
     return success(res, null, 'Parol muvaffaqiyatli o\'zgartirildi');
   } catch (err) {
@@ -50,7 +46,6 @@ const changePassword = async (req, res) => {
   }
 };
 
-/** Xavfsiz profil (password_hash, biometric_key yo'q). */
 const me = async (req, res) => {
   try {
     const user = await authService.getMe(req.user.id);
@@ -66,5 +61,4 @@ module.exports = {
   logout,
   changePassword,
   me,
-  tokenBlacklist
 };

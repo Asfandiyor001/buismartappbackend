@@ -9,7 +9,7 @@ async function generatePreviousMonthReports() {
   const month = prev.getMonth() + 1;
 
   const staffRes = await pool.query(
-    `SELECT id FROM users WHERE role = 'staff'`
+    `SELECT id FROM users WHERE role IN ('staff', 'admin', 'prorektor')`
   );
 
   let n = 0;

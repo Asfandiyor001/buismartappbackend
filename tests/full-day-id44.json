@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-06-18T11:26:25.845Z",
+  "passed": 34,
+  "failed": 0,
+  "total": 34,
+  "pct": 100,
+  "timeline": [
+    {
+      "time": "08:00",
+      "event": "Xodim Bino 1 ga keldi"
+    },
+    {
+      "time": "08:15",
+      "event": "Normal ping"
+    },
+    {
+      "time": "08:30",
+      "event": "Normal ping"
+    },
+    {
+      "time": "08:45",
+      "event": "Normal ping"
+    },
+    {
+      "time": "09:00",
+      "event": "Internet O'CHIRDI — offline boshlandi"
+    },
+    {
+      "time": "12:00",
+      "event": "Internet YOQILDI — offline queue flush"
+    },
+    {
+      "time": "12:30",
+      "event": "Normal ping"
+    },
+    {
+      "time": "13:00",
+      "event": "ABET boshlandi "
+    },
+    {
+      "time": "14:30",
+      "event": "Abetdan qaytdi"
+    },
+    {
+      "time": "15:00",
+      "event": "Normal ping"
+    },
+    {
+      "time": "15:30",
+      "event": "Binodan CHIQDI"
+    },
+    {
+      "time": "15:32",
+      "event": "Internet O'CHIRDI — 1 soat offline tashqarida"
+    },
+    {
+      "time": "16:30",
+      "event": "Binoga QAYTDI, Internet YOQDI"
+    },
+    {
+      "time": "16:35",
+      "event": "Uyiga ketdi"
+    }
+  ],
+  "errors": []
+}

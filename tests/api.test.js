@@ -303,7 +303,7 @@ async function runGeofenceTimeTests() {
       // If no session → after_work_time
       const valid = [
         'after_work_time', 'auto_checkout_end_of_day',
-        'inside_same', 'day_finished',
+        'inside_same', 'day_finished', 'too_frequent',
       ];
       console.log(`   After-work action at ${ts}: ${body.data?.action}`);
       assert(valid.includes(body.data?.action),

@@ -15,7 +15,7 @@ router.get('/active', authenticate, workController.getActiveLog);
 router.post(
   '/ping',
   authenticate,
-  checkRole('staff', 'admin'),
+  checkRole('staff', 'admin', 'prorektor'),
   workController.pingHandler
 );
 

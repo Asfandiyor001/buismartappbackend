@@ -4,7 +4,7 @@ const authenticate = require('../../middleware/auth');
 const checkRole = require('../../middleware/role');
 const staffController = require('./staff.controller');
 
-const staffOrAdmin = checkRole('staff', 'admin');
+const staffOrAdmin = checkRole('staff', 'admin', 'prorektor');
 
 router.get('/profile', authenticate, staffOrAdmin, staffController.getProfile);
 router.put('/profile', authenticate, staffOrAdmin, staffController.updateProfile);

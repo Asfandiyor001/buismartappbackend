@@ -1,12 +1,12 @@
 {
-  "date": "2026-05-10T04:29:56.902Z",
+  "date": "2026-05-14T18:50:47.604Z",
   "backend": "https://fit-bless-embolism.ngrok-free.dev",
   "summary": {
-    "pass": 58,
-    "fail": 3,
+    "pass": 54,
+    "fail": 1,
     "warn": 0,
-    "total": 61,
-    "percentage": 95
+    "total": 55,
+    "percentage": 98
   },
   "byCategory": {
     "AUTH": {
@@ -14,7 +14,7 @@
       "total": 9
     },
     "PROFILE": {
-      "pass": 7,
+      "pass": 6,
       "total": 7
     },
     "WORK": {
@@ -22,8 +22,8 @@
       "total": 5
     },
     "GPS": {
-      "pass": 4,
-      "total": 4
+      "pass": 5,
+      "total": 5
     },
     "BUILDINGS": {
       "pass": 2,
@@ -42,8 +42,8 @@
       "total": 11
     },
     "STUDENT": {
-      "pass": 5,
-      "total": 8
+      "pass": 1,
+      "total": 1
     },
     "SECURITY": {
       "pass": 6,
@@ -133,13 +133,13 @@
       "category": "PROFILE",
       "name": "Ta'tillar ro'yxati",
       "status": "PASS",
-      "note": "1 ta ta'til"
+      "note": "0 ta ta'til"
     },
     {
       "category": "PROFILE",
       "name": "Ta'til so'rovi yuborish",
-      "status": "PASS",
-      "note": "So'rov yuborildi ✓"
+      "status": "FAIL",
+      "error": "Ta'til so'rovi yuborilmadi: новая строка в отношении \"staff_vacations\" нарушает ограничение-проверку \"staff_vacations_status_check\""
     },
     {
       "category": "PROFILE",
@@ -151,7 +151,7 @@
       "category": "WORK",
       "name": "Bugungi sessiya",
       "status": "PASS",
-      "note": "Sessiya yo'q"
+      "note": "Status: done, Live: 32457s"
     },
     {
       "category": "WORK",
@@ -181,7 +181,7 @@
       "category": "GPS",
       "name": "GPS ping — Bino 1 ichida (39.741066, 64.427637)",
       "status": "PASS",
-      "note": "Action: auto_checkin"
+      "note": "Action: auto_recheckin"
     },
     {
       "category": "GPS",
@@ -192,6 +192,12 @@
     {
       "category": "GPS",
       "name": "GPS ping — Tashqarida (Toshkent 41.2995, 69.2401)",
+      "status": "PASS",
+      "note": "Action: too_frequent"
+    },
+    {
+      "category": "GPS",
+      "name": "16:30 dan keyin — overtime yoki day_finished",
       "status": "PASS",
       "note": "Action: too_frequent"
     },
@@ -217,13 +223,13 @@
       "category": "REPORTS",
       "name": "Kunlik hisobot (bugun)",
       "status": "PASS",
-      "note": "Sana: 2026-05-10"
+      "note": "Sana: 2026-05-14"
     },
     {
       "category": "REPORTS",
       "name": "Oylik hisobot",
       "status": "PASS",
-      "note": "Kelgan: 5 kun"
+      "note": "Kelgan: 2 kun"
     },
     {
       "category": "REPORTS",
@@ -253,7 +259,7 @@
       "category": "NOTIFICATIONS",
       "name": "Xabarnomalar ro'yxati",
       "status": "PASS",
-      "note": "20 ta, O'qilmagan: 3"
+      "note": "18 ta, O'qilmagan: 3"
     },
     {
       "category": "NOTIFICATIONS",
@@ -277,13 +283,13 @@
       "category": "ADMIN",
       "name": "Hozir aktiv xodimlar",
       "status": "PASS",
-      "note": "1 ta aktiv xodim"
+      "note": "2 ta aktiv xodim"
     },
     {
       "category": "ADMIN",
       "name": "Bugun kelmagan xodimlar",
       "status": "PASS",
-      "note": "14 ta kelmagan"
+      "note": "11 ta kelmagan"
     },
     {
       "category": "ADMIN",
@@ -307,7 +313,7 @@
       "category": "ADMIN",
       "name": "Xodim ta'tillari (admin)",
       "status": "PASS",
-      "note": "2 ta ta'til"
+      "note": "0 ta ta'til"
     },
     {
       "category": "ADMIN",
@@ -319,13 +325,13 @@
       "category": "ADMIN",
       "name": "Xodim ish loglari (admin)",
       "status": "PASS",
-      "note": "1 ta log"
+      "note": "3 ta log"
     },
     {
       "category": "ADMIN",
       "name": "Broadcast xabar — barcha foydalanuvchilarga",
       "status": "PASS",
-      "note": "18 ta foydalanuvchiga yuborildi"
+      "note": "14 ta foydalanuvchiga yuborildi"
     },
     {
       "category": "ADMIN",
@@ -337,49 +343,7 @@
       "category": "STUDENT",
       "name": "Talaba login",
       "status": "PASS",
-      "note": "Talaba: Dilnoza Yusupova"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Talaba profili",
-      "status": "PASS",
-      "note": "OK"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Bugungi darslar",
-      "status": "FAIL",
-      "error": "Jadval yuklanmadi"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Haftalik jadval",
-      "status": "FAIL",
-      "error": "Jadval yuklanmadi"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Davomat xulosasi",
-      "status": "PASS",
-      "note": "OK"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Baholar",
-      "status": "PASS",
-      "note": "OK"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Topshiriqlar",
-      "status": "FAIL",
-      "error": "Assignments yuklanmadi"
-    },
-    {
-      "category": "STUDENT",
-      "name": "Noto'g'ri QR token → xato",
-      "status": "PASS",
-      "note": "Bloklandi ✓"
+      "note": "Talaba topilmadi (skip)"
     },
     {
       "category": "SECURITY",

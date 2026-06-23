@@ -1,8 +1,9 @@
 // src/middleware/auth.js
 const { verifyToken } = require('../config/jwt');
 const { error } = require('../utils/response');
+const { hasToken } = require('../utils/tokenBlacklist');
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   // So'rovning 'headers' qismidan tokenni qidiramiz
   const authHeader = req.headers.authorization;
 
@@ -16,6 +17,10 @@ const authenticate = (req, res, next) => {
 
   if (!decoded) {
     return error(res, 'Yaroqsiz yoki muddati o\'tgan token!', 401);
+  }
+
+  if (await hasToken(token)) {
+    return res.status(401).json({ success: false, message: 'Token bekor qilingan' });
   }
 
   // Agar token to'g'ri bo'lsa, foydalanuvchi ma'lumotlarini req.user ga ulaymiz

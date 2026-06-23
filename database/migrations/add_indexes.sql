@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_work_logs_active ON work_logs(is_active) WHERE is
 CREATE INDEX IF NOT EXISTS idx_gps_pings_user ON gps_pings(user_id);
 CREATE INDEX IF NOT EXISTS idx_gps_pings_created ON gps_pings(created_at);
 CREATE INDEX IF NOT EXISTS idx_student_attendance_student ON student_attendance(student_id);
-CREATE INDEX IF NOT EXISTS idx_student_attendance_date ON student_attendance(date);
+CREATE INDEX IF NOT EXISTS idx_student_attendance_date ON student_attendance(attend_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_teacher ON schedules(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_grades_student ON grades(student_id);
